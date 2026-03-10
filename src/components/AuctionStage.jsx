@@ -1,11 +1,11 @@
 // src/components/AuctionStage.jsx
 // ─── Admin: select player, set bid, assign to team ───────────────────────────
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { TEAMS, ROLES, ROLE_COLORS } from '../lib/constants'
 import PlayerCard from './PlayerCard'
 
-export default function AuctionStage({ players, onSell, showToast }) {
+export default function AuctionStage({ players, onSell, showToast, selectedPlayer, onSelectedHandled }) {
   const [auctionPlayer, setAuctionPlayer] = useState(null)
   const [bidAmount,     setBidAmount]     = useState('')
   const [selectedTeam,  setSelectedTeam]  = useState(null)
@@ -29,7 +29,18 @@ export default function AuctionStage({ players, onSell, showToast }) {
     setBidAmount(String(player.basePrice))
     setSelectedTeam(null)
   }
+  useEffect(() => {
+    if (selectedPlayer) {
+      setAuctionPlayer(selectedPlayer)
+      setBidAmount(String(selectedPlayer.basePrice))
+      setSelectedTeam(null)
 
+      if (onSelectedHandled) {
+        onSelectedHandled()
+      }
+    }
+  }, [selectedPlayer, onSelectedHandled])
+  
   const cancelSelection = () => {
     setAuctionPlayer(null)
     setSelectedTeam(null)

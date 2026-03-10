@@ -3,17 +3,17 @@
 
 import { useState } from 'react'
 import { ADMIN_PASSWORD } from '../lib/constants'
-import { usePlayers }     from '../hooks/usePlayers'
-import { useToast }       from '../hooks/useToast'
-import AuctionStage       from '../components/AuctionStage'
-import PlayerPool         from '../components/PlayerPool'
-import TeamsView          from '../components/TeamsView'
-import Toast              from '../components/Toast'
+import { usePlayers } from '../hooks/usePlayers'
+import { useToast } from '../hooks/useToast'
+import AuctionStage from '../components/AuctionStage'
+import PlayerPool from '../components/PlayerPool'
+import TeamsView from '../components/TeamsView'
+import Toast from '../components/Toast'
 
 // ── Password gate ─────────────────────────────────────────────────────────────
 function PasswordGate({ onUnlock }) {
-  const [input, setInput]   = useState('')
-  const [error, setError]   = useState(false)
+  const [input, setInput] = useState('')
+  const [error, setError] = useState(false)
 
   const attempt = () => {
     if (input === ADMIN_PASSWORD) {
@@ -65,7 +65,7 @@ function PasswordGate({ onUnlock }) {
 // ── Header ────────────────────────────────────────────────────────────────────
 function Header({ players, onReset }) {
   const available = players.filter((p) => p.status === 'available').length
-  const sold      = players.filter((p) => p.status === 'sold').length
+  const sold = players.filter((p) => p.status === 'sold').length
 
   return (
     <div style={{ background: 'linear-gradient(135deg,#0a1628,#0d2040)', borderBottom: '1px solid #1e3a5f' }}>
@@ -103,7 +103,7 @@ function Header({ players, onReset }) {
 // ── Main AdminPage ────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [unlocked, setUnlocked] = useState(false)
-  const [view,     setView]     = useState('auction')
+  const [view, setView] = useState('auction')
 
   const { players, loading, error, sellPlayer, releasePlayer, resetAuction } = usePlayers()
   const { toast, showToast } = useToast()
@@ -154,8 +154,8 @@ export default function AdminPage() {
         <div style={{ maxWidth: 1440, margin: '0 auto', display: 'flex' }}>
           {[
             { id: 'auction', icon: '🔨', label: 'Auction Stage' },
-            { id: 'pool',    icon: '👥', label: 'Player Pool', badge: available },
-            { id: 'teams',   icon: '🏆', label: 'Teams' },
+            { id: 'pool', icon: '👥', label: 'Player Pool', badge: available },
+            { id: 'teams', icon: '🏆', label: 'Teams' },
           ].map((t) => (
             <button
               key={t.id}
@@ -188,8 +188,8 @@ export default function AdminPage() {
             players={players}
             onSell={sellPlayer}
             showToast={showToast}
-            jumpToPlayer={poolJump}
-            onJumpConsumed={() => setPoolJump(null)}
+            selectedPlayer={poolJump}
+            onSelectedHandled={() => setPoolJump(null)}
           />
         )}
         {view === 'pool' && (
