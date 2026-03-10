@@ -1,0 +1,76 @@
+/* src/styles/global.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Teko:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background: #070d14;
+  color: #e8edf5;
+  min-height: 100vh;
+}
+
+input, select, button, textarea {
+  font-family: 'Rajdhani', sans-serif;
+}
+
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: #0d1929; }
+::-webkit-scrollbar-thumb  { background: #1e3a5f; border-radius: 3px; }
+
+/* ── Shared utility classes ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.teko { font-family: 'Teko', sans-serif; }
+
+/* ── Animations ── */
+@keyframes fadeUp   { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:none } }
+@keyframes toastIn  { from { opacity:0; transform:translateX(40px) } to { opacity:1; transform:none } }
+@keyframes slideIn  { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
+@keyframes pulse    { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+@keyframes loadBar  { 0% { transform:translateX(-100%) } 100% { transform:translateX(260%) } }
+
+.fade-up   { animation: fadeUp  .25s ease; }
+.toast-wrap { animation: toastIn .25s ease; }
+.slide-in  { animation: slideIn .2s ease; }
+
+/* ── Card / button interactions ── */
+.pcard {
+  transition: transform .15s, box-shadow .15s;
+  cursor: pointer;
+}
+.pcard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,.5);
+}
+.pcard.on-stage {
+  box-shadow: 0 0 0 2px #00c864, 0 8px 20px rgba(0,200,100,.2);
+}
+
+.chip { transition: transform .15s; cursor: pointer; }
+.chip:hover { transform: scale(1.04); }
+
+.sell-btn { transition: transform .2s, box-shadow .2s; }
+.sell-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,200,100,.4);
+}
+.sell-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+.drop-btn { transition: background .15s, transform .15s; }
+.drop-btn:hover { background: #b91c1c !important; transform: scale(1.1); }
+
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #00c864;
+  animation: pulse 1.5s infinite;
+}
