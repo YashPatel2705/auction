@@ -14,7 +14,7 @@ export default function PlayerCard({ player, onClick, isSelected, compact = fals
         padding: compact ? 11 : 14,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontWeight: 700,
@@ -26,37 +26,31 @@ export default function PlayerCard({ player, onClick, isSelected, compact = fals
           }}>
             {player.name}
           </div>
+          <span
+            className="badge"
+            style={{
+              marginTop: 5,
+              display: 'inline-block',
+              background: ROLE_COLORS[player.role]?.bg,
+              color: ROLE_COLORS[player.role]?.text,
+              fontSize: compact ? 9 : 10,
+            }}
+          >
+            {player.role}
+          </span>
         </div>
         <div style={{
           fontFamily: "'Teko', sans-serif",
-          fontSize: compact ? 20 : 24,
+          fontSize: compact ? 22 : 26,
           color: '#00c864',
-          marginLeft: 8,
+          marginLeft: 10,
           flexShrink: 0,
           lineHeight: 1,
+          textAlign: 'center',
         }}>
+          <div style={{ fontSize: compact ? 9 : 10, color: '#4a7fa8', letterSpacing: 1 }}>RTG</div>
           {player.rating}
         </div>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span
-          className="badge"
-          style={{
-            background: ROLE_COLORS[player.role]?.bg,
-            color: ROLE_COLORS[player.role]?.text,
-            fontSize: compact ? 9 : 10,
-          }}
-        >
-          {player.role}
-        </span>
-        <span style={{
-          fontFamily: "'Teko', sans-serif",
-          fontSize: compact ? 13 : 15,
-          color: '#ffb060',
-        }}>
-          ₹{player.basePrice}L
-        </span>
       </div>
     </div>
   )

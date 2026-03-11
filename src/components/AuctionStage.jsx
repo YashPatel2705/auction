@@ -1,17 +1,24 @@
 // src/components/AuctionStage.jsx
-// ─── Admin: select player, set bid, assign to team ───────────────────────────
 
 import { useState, useMemo, useEffect } from 'react'
 import { TEAMS, ROLES, ROLE_COLORS } from '../lib/constants'
 import PlayerCard from './PlayerCard'
 
-export default function AuctionStage({ players, onSell, showToast, selectedPlayer, onSelectedHandled }) {
+export default function AuctionStage({ players, onSell, showToast, jumpToPlayer, onJumpConsumed }) {
   const [auctionPlayer, setAuctionPlayer] = useState(null)
-  const [bidAmount,     setBidAmount]     = useState('')
   const [selectedTeam,  setSelectedTeam]  = useState(null)
   const [search,        setSearch]        = useState('')
   const [roleFilter,    setRoleFilter]    = useState('All')
   const [busy,          setBusy]          = useState(false)
+
+  // When a player is clicked from the Pool tab, auto-select them here
+  useEffect(() => {
+    if (jumpToPlayer) {
+      setAuctionPlayer(jumpToPlayer)
+      setSelectedTeam(null)
+      onJumpConsumed?.()
+    }
+  }, [jumpToPlayer])
 
   const available = useMemo(() => players.filter((p) => p.status === 'available'), [players])
 
@@ -26,39 +33,21 @@ export default function AuctionStage({ players, onSell, showToast, selectedPlaye
 
   const selectPlayer = (player) => {
     setAuctionPlayer(player)
-    setBidAmount(String(player.basePrice))
     setSelectedTeam(null)
   }
-  useEffect(() => {
-    if (selectedPlayer) {
-      setAuctionPlayer(selectedPlayer)
-      setBidAmount(String(selectedPlayer.basePrice))
-      setSelectedTeam(null)
 
-      if (onSelectedHandled) {
-        onSelectedHandled()
-      }
-    }
-  }, [selectedPlayer, onSelectedHandled])
-  
   const cancelSelection = () => {
     setAuctionPlayer(null)
     setSelectedTeam(null)
-    setBidAmount('')
   }
 
   const handleSell = async () => {
     if (!auctionPlayer || !selectedTeam) return
-    const price = parseInt(bidAmount, 10)
-    if (!price || price < auctionPlayer.basePrice) {
-      showToast('Bid must be ≥ base price!', 'error')
-      return
-    }
     setBusy(true)
     try {
-      await onSell({ playerId: auctionPlayer.id, teamId: selectedTeam, price })
+      await onSell({ playerId: auctionPlayer.id, teamId: selectedTeam })
       const teamName = TEAMS.find((t) => t.id === selectedTeam)?.name
-      showToast(`${auctionPlayer.name} sold to ${teamName} for ₹${price}L!`)
+      showToast(`${auctionPlayer.name} sold to ${teamName}!`)
       cancelSelection()
     } catch (err) {
       showToast(err.message, 'error')
@@ -70,7 +59,7 @@ export default function AuctionStage({ players, onSell, showToast, selectedPlaye
   return (
     <div
       className="fade-up"
-      style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, alignItems: 'start' }}
+      style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16, alignItems: 'start' }}
     >
       {/* ── LEFT: Stage panel ── */}
       <div style={{
@@ -91,11 +80,11 @@ export default function AuctionStage({ players, onSell, showToast, selectedPlaye
             </div>
           ) : (
             <div className="slide-in">
-              {/* Player info card */}
-              <div style={{ background: '#08111e', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #1e3a5f' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              {/* Player info */}
+              <div style={{ background: '#08111e', borderRadius: 12, padding: 16, marginBottom: 16, border: '1px solid #1e3a5f' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="teko" style={{ fontSize: 24, color: '#fff', lineHeight: 1.1 }}>{auctionPlayer.name}</div>
+                    <div className="teko" style={{ fontSize: 26, color: '#fff', lineHeight: 1.1 }}>{auctionPlayer.name}</div>
                     <span
                       className="badge"
                       style={{ marginTop: 6, background: ROLE_COLORS[auctionPlayer.role]?.bg, color: ROLE_COLORS[auctionPlayer.role]?.text }}
@@ -103,47 +92,22 @@ export default function AuctionStage({ players, onSell, showToast, selectedPlaye
                       {auctionPlayer.role}
                     </span>
                   </div>
-                  <div style={{ textAlign: 'right', marginLeft: 8 }}>
+                  <div style={{ textAlign: 'right', marginLeft: 10 }}>
                     <div style={{ fontSize: 9, color: '#4a7fa8', letterSpacing: 1 }}>RATING</div>
-                    <div className="teko" style={{ fontSize: 32, color: '#00c864', lineHeight: 1 }}>{auctionPlayer.rating}</div>
+                    <div className="teko" style={{ fontSize: 36, color: '#00c864', lineHeight: 1 }}>{auctionPlayer.rating}</div>
                   </div>
                 </div>
-                <div style={{ borderTop: '1px solid #1e3a5f', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: 9, color: '#4a7fa8', letterSpacing: 1 }}>BASE PRICE</div>
-                    <div className="teko" style={{ fontSize: 20, color: '#ffb060' }}>₹{auctionPlayer.basePrice}L</div>
-                  </div>
+                <div style={{ borderTop: '1px solid #1e3a5f', paddingTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
                   <button
                     onClick={cancelSelection}
-                    style={{ background: 'none', border: '1px solid #1e3a5f', borderRadius: 6, padding: '4px 10px', color: '#4a7fa8', fontSize: 12, cursor: 'pointer' }}
+                    style={{ background: 'none', border: '1px solid #1e3a5f', borderRadius: 6, padding: '4px 12px', color: '#4a7fa8', fontSize: 12, cursor: 'pointer' }}
                   >
                     ✕ Cancel
                   </button>
                 </div>
               </div>
 
-              {/* Bid input */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 10, color: '#4a7fa8', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
-                  FINAL BID (₹ Lakhs)
-                </label>
-                <input
-                  type="number"
-                  value={bidAmount}
-                  min={auctionPlayer.basePrice}
-                  onChange={(e) => setBidAmount(e.target.value)}
-                  style={{
-                    width: '100%', background: '#08111e', border: '1px solid #1e3a5f',
-                    borderRadius: 8, padding: '10px 14px', color: '#fff',
-                    fontSize: 22, fontFamily: "'Teko', sans-serif", letterSpacing: 1,
-                  }}
-                />
-                <div style={{ fontSize: 10, color: '#155a30', marginTop: 3 }}>
-                  Minimum: ₹{auctionPlayer.basePrice}L
-                </div>
-              </div>
-
-              {/* Team grid */}
+              {/* Team selector */}
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 10, color: '#4a7fa8', letterSpacing: 1, display: 'block', marginBottom: 8 }}>
                   ASSIGN TO TEAM
@@ -159,8 +123,8 @@ export default function AuctionStage({ players, onSell, showToast, selectedPlaye
                         style={{
                           background: active ? team.color + '28' : '#08111e',
                           border: `2px solid ${active ? team.color : '#1e3a5f'}`,
-                          borderRadius: 8, padding: '7px 8px',
-                          display: 'flex', alignItems: 'center', gap: 7,
+                          borderRadius: 8, padding: '8px 10px',
+                          display: 'flex', alignItems: 'center', gap: 8,
                         }}
                       >
                         <div style={{ width: 10, height: 10, borderRadius: '50%', background: team.color, flexShrink: 0 }} />
@@ -174,7 +138,7 @@ export default function AuctionStage({ players, onSell, showToast, selectedPlaye
               <button
                 className="sell-btn"
                 onClick={handleSell}
-                disabled={!selectedTeam || !bidAmount || busy}
+                disabled={!selectedTeam || busy}
                 style={{
                   width: '100%',
                   background: selectedTeam && !busy ? 'linear-gradient(135deg,#00c864,#007a3d)' : '#1e3a5f',

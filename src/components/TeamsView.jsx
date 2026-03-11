@@ -1,21 +1,18 @@
 // src/components/TeamsView.jsx
-// ─── View each team's squad; admin can release players back to pool ───────────
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { TEAMS, ROLE_COLORS } from '../lib/constants'
 import ConfirmModal from './ConfirmModal'
 
 export default function TeamsView({ players, onRelease, isAdmin, showToast }) {
-  const [activeTeam,   setActiveTeam]   = useState('MI')
-  const [confirmDrop,  setConfirmDrop]  = useState(null)
-  const [busy,         setBusy]         = useState(false)
+  const [activeTeam,  setActiveTeam]  = useState('MI')
+  const [confirmDrop, setConfirmDrop] = useState(null)
+  const [busy,        setBusy]        = useState(false)
 
   const teamRoster = (tid) => players.filter((p) => p.soldTo === tid)
-  const teamSpent  = (tid) => players.filter((p) => p.soldTo === tid).reduce((s, p) => s + (p.soldPrice || 0), 0)
 
   const team   = TEAMS.find((t) => t.id === activeTeam)
   const roster = teamRoster(activeTeam)
-  const spent  = teamSpent(activeTeam)
 
   const handleRelease = async (playerId) => {
     setBusy(true)
@@ -41,7 +38,6 @@ export default function TeamsView({ players, onRelease, isAdmin, showToast }) {
         </div>
         {TEAMS.map((t) => {
           const count = teamRoster(t.id).length
-          const s     = teamSpent(t.id)
           const act   = activeTeam === t.id
           return (
             <button
@@ -66,8 +62,10 @@ export default function TeamsView({ players, onRelease, isAdmin, showToast }) {
                 {t.short}
               </div>
               <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: act ? '#fff' : '#7ab4d8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-                <div style={{ fontSize: 11, color: '#3a6a8f' }}>{count} players · ₹{s}L</div>
+                <div style={{ fontSize: 13, color: act ? '#fff' : '#7ab4d8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {t.name}
+                </div>
+                <div style={{ fontSize: 11, color: '#3a6a8f' }}>{count} players</div>
               </div>
             </button>
           )
@@ -81,24 +79,18 @@ export default function TeamsView({ players, onRelease, isAdmin, showToast }) {
           background: `linear-gradient(135deg,${team.color}20,transparent)`,
           borderBottom: '1px solid #1e3a5f',
           padding: '15px 20px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          display: 'flex', alignItems: 'center', gap: 12,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 10, background: team.color,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, color: team.accent, fontWeight: 800,
-            }}>
-              {team.short}
-            </div>
-            <div>
-              <div className="teko" style={{ fontSize: 23, letterSpacing: 1, color: '#fff' }}>{team.name}</div>
-              <div style={{ fontSize: 12, color: '#4a7fa8' }}>{roster.length} players in squad</div>
-            </div>
+          <div style={{
+            width: 46, height: 46, borderRadius: 10, background: team.color,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, color: team.accent, fontWeight: 800,
+          }}>
+            {team.short}
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 9, color: '#4a7fa8', letterSpacing: 1 }}>TOTAL SPENT</div>
-            <div className="teko" style={{ fontSize: 26, color: '#ffb060' }}>₹{spent}L</div>
+          <div>
+            <div className="teko" style={{ fontSize: 24, letterSpacing: 1, color: '#fff' }}>{team.name}</div>
+            <div style={{ fontSize: 12, color: '#4a7fa8' }}>{roster.length} players in squad</div>
           </div>
         </div>
 
@@ -108,16 +100,15 @@ export default function TeamsView({ players, onRelease, isAdmin, showToast }) {
             <div style={{ textAlign: 'center', padding: 60, color: '#3a6a8f' }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>🏏</div>
               <div>No players yet</div>
-              {isAdmin && <div style={{ fontSize: 12, marginTop: 4, color: '#1e3a5f' }}>Auction Stage → bid on players to fill this squad</div>}
+              {isAdmin && <div style={{ fontSize: 12, marginTop: 4, color: '#1e3a5f' }}>Go to Auction Stage to assign players</div>}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 10 }}>
               {roster.map((player) => (
                 <div
                   key={player.id}
                   style={{ background: '#08111e', border: '1px solid #1e3a5f', borderRadius: 12, padding: 14, position: 'relative' }}
                 >
-                  {/* Release button — admin only */}
                   {isAdmin && (
                     <button
                       className="drop-btn"
@@ -135,20 +126,15 @@ export default function TeamsView({ players, onRelease, isAdmin, showToast }) {
                       ↩
                     </button>
                   )}
-
                   <div style={{ paddingRight: isAdmin ? 34 : 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{player.name}</div>
-                  </div>
-                  <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span
-                      className="badge"
-                      style={{ background: ROLE_COLORS[player.role]?.bg, color: ROLE_COLORS[player.role]?.text, fontSize: 9 }}
-                    >
-                      {player.role}
-                    </span>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 9, color: '#4a7fa8' }}>SOLD FOR</div>
-                      <div className="teko" style={{ fontSize: 16, color: '#00c864' }}>₹{player.soldPrice}L</div>
+                    <div style={{ marginTop: 6 }}>
+                      <span
+                        className="badge"
+                        style={{ background: ROLE_COLORS[player.role]?.bg, color: ROLE_COLORS[player.role]?.text, fontSize: 9 }}
+                      >
+                        {player.role}
+                      </span>
                     </div>
                   </div>
                 </div>

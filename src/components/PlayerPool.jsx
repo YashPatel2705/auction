@@ -1,5 +1,4 @@
 // src/components/PlayerPool.jsx
-// ─── Browse all available players, click to send to auction ─────────────────
 
 import { useMemo, useState } from 'react'
 import { ROLES } from '../lib/constants'
@@ -57,17 +56,16 @@ export default function PlayerPool({ players, onSelectForAuction }) {
       {/* Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
         {filtered.map((player) => (
-          <div key={player.id} style={{ position: 'relative' }}>
+          <div key={player.id}>
             <PlayerCard
               player={player}
               onClick={() => onSelectForAuction(player)}
             />
-            <div style={{ marginTop: -2, padding: '6px 14px 10px', fontSize: 10, color: '#155a30', textAlign: 'right' }}>
+            <div style={{ padding: '4px 4px 8px', fontSize: 10, color: '#155a30', textAlign: 'right' }}>
               Click to send to auction →
             </div>
           </div>
         ))}
-
         {filtered.length === 0 && (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 60, color: '#3a6a8f' }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>🔍</div>
