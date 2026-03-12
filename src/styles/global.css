@@ -1,49 +1,64 @@
 /* src/styles/global.css */
 
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Teko:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Teko:wght@500;600;700&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { -webkit-text-size-adjust: 100%; }
+
 body {
   font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
   background: #070d14;
   color: #e8edf5;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 input, select, button, textarea {
   font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
 }
 
+/* ── Scrollbar ── */
 ::-webkit-scrollbar        { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track  { background: #0d1929; }
 ::-webkit-scrollbar-thumb  { background: #1e3a5f; border-radius: 3px; }
 
-/* ── Shared utility classes ── */
+/* ── Typography ── */
+.teko { font-family: 'Teko', sans-serif; font-weight: 600; }
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #5a8fba;
+}
+
+/* ── Badge ── */
 .badge {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
 }
 
-.teko { font-family: 'Teko', sans-serif; }
-
 /* ── Animations ── */
-@keyframes fadeUp   { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:none } }
-@keyframes toastIn  { from { opacity:0; transform:translateX(40px) } to { opacity:1; transform:none } }
-@keyframes slideIn  { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
-@keyframes pulse    { 0%,100% { opacity:1 } 50% { opacity:.4 } }
-@keyframes loadBar  { 0% { transform:translateX(-100%) } 100% { transform:translateX(260%) } }
+@keyframes fadeUp  { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:none } }
+@keyframes toastIn { from { opacity:0; transform:translateX(40px) } to { opacity:1; transform:none } }
+@keyframes slideIn { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
+@keyframes pulse   { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+@keyframes loadBar { 0% { transform:translateX(-100%) } 100% { transform:translateX(260%) } }
 
-.fade-up   { animation: fadeUp  .25s ease; }
+.fade-up    { animation: fadeUp  .25s ease; }
 .toast-wrap { animation: toastIn .25s ease; }
-.slide-in  { animation: slideIn .2s ease; }
+.slide-in   { animation: slideIn .2s  ease; }
 
-/* ── Card / button interactions ── */
+/* ── Interactive elements ── */
 .pcard {
   transition: transform .15s, box-shadow .15s;
   cursor: pointer;
@@ -64,7 +79,7 @@ input, select, button, textarea {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0,200,100,.4);
 }
-.sell-btn:disabled { opacity: .3; cursor: not-allowed; }
+.sell-btn:disabled { opacity:.4; cursor:not-allowed; }
 
 .drop-btn { transition: background .15s, transform .15s; }
 .drop-btn:hover { background: #b91c1c !important; transform: scale(1.1); }
@@ -73,4 +88,109 @@ input, select, button, textarea {
   width: 8px; height: 8px; border-radius: 50%;
   background: #00c864;
   animation: pulse 1.5s infinite;
+}
+
+/* ══════════════════════════════════════════
+   MOBILE — everything ≤ 768px
+══════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Header ── */
+  .mob-header-inner {
+    height: auto !important;
+    padding: 10px 14px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .mob-header-stats {
+    display: none !important;
+  }
+  .mob-reset-btn {
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+  }
+
+  /* ── Nav tabs — scroll horizontally ── */
+  .mob-nav {
+    padding: 0 10px !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mob-nav > div {
+    min-width: max-content;
+  }
+  .mob-nav button {
+    padding: 11px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* ── Main content padding ── */
+  .mob-content {
+    padding: 12px !important;
+  }
+
+  /* ── AuctionStage: stack vertically ── */
+  .auction-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── TeamsView: stack vertically ── */
+  .teams-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .teams-sidebar {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    border-radius: 12px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .teams-sidebar button {
+    min-width: 90px !important;
+    border-left: none !important;
+    border-bottom: 3px solid transparent !important;
+    padding: 10px 12px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    text-align: center !important;
+  }
+
+  /* ── SpinWheel: stack vertically ── */
+  .spin-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .spin-canvas {
+    width: 260px !important;
+    height: 260px !important;
+  }
+
+  /* ── ManagePlayers table: hide some cols ── */
+  .mp-table-row {
+    grid-template-columns: 36px 1fr 70px 56px 80px !important;
+  }
+  .mp-hide-mobile {
+    display: none !important;
+  }
+
+  /* ── Cards grid ── */
+  .mob-cards-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* ── Modals full width ── */
+  .mob-modal {
+    width: 96% !important;
+    padding: 20px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .mob-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .spin-canvas {
+    width: 220px !important;
+    height: 220px !important;
+  }
 }
