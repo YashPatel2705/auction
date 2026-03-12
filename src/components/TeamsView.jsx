@@ -73,7 +73,7 @@ export default function TeamsView({ players, teams = [], onRelease, isAdmin, sho
       </div>
 
       {/* Roster panel */}
-      <div style={{ background: '#0a1e35', borderRadius: 16, border: '1px solid #1e3a5f', overflow: 'hidden' }}>
+      {!team ? null : <div style={{ background: '#0a1e35', borderRadius: 16, border: '1px solid #1e3a5f', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{
           background: `linear-gradient(135deg,${team.color}20,transparent)`,
@@ -142,7 +142,7 @@ export default function TeamsView({ players, teams = [], onRelease, isAdmin, sho
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       <ConfirmModal
         player={confirmDrop}
