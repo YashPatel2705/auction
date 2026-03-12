@@ -1,10 +1,10 @@
 // src/components/AuctionStage.jsx
 
 import { useState, useMemo, useEffect } from 'react'
-import { TEAMS, ROLES, ROLE_COLORS } from '../lib/constants'
+import { ROLES, ROLE_COLORS } from '../lib/constants'
 import PlayerCard from './PlayerCard'
 
-export default function AuctionStage({ players, onSell, showToast, jumpToPlayer, onJumpConsumed }) {
+export default function AuctionStage({ players, teams = [], onSell, showToast, jumpToPlayer, onJumpConsumed }) {
   const [auctionPlayer, setAuctionPlayer] = useState(null)
   const [selectedTeam,  setSelectedTeam]  = useState(null)
   const [search,        setSearch]        = useState('')
@@ -46,7 +46,7 @@ export default function AuctionStage({ players, onSell, showToast, jumpToPlayer,
     setBusy(true)
     try {
       await onSell({ playerId: auctionPlayer.id, teamId: selectedTeam })
-      const teamName = TEAMS.find((t) => t.id === selectedTeam)?.name
+      const teamName = teams.find((t) => t.id === selectedTeam)?.name
       showToast(`${auctionPlayer.name} sold to ${teamName}!`)
       cancelSelection()
     } catch (err) {
@@ -113,7 +113,7 @@ export default function AuctionStage({ players, onSell, showToast, jumpToPlayer,
                   ASSIGN TO TEAM
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  {TEAMS.map((team) => {
+                  {teams.map((team) => {
                     const active = selectedTeam === team.id
                     return (
                       <button

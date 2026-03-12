@@ -1,18 +1,18 @@
 // src/components/TeamsView.jsx
 
 import { useState } from 'react'
-import { TEAMS, ROLE_COLORS } from '../lib/constants'
+import { ROLE_COLORS } from '../lib/constants'
 import ConfirmModal from './ConfirmModal'
 
-export default function TeamsView({ players, onRelease, isAdmin, showToast }) {
-  const [activeTeam,  setActiveTeam]  = useState('MI')
+export default function TeamsView({ players, teams = [], onRelease, isAdmin, showToast }) {
+  const [activeTeam,  setActiveTeam]  = useState(teams[0]?.id || 'MI')
   const [confirmDrop, setConfirmDrop] = useState(null)
   const [busy,        setBusy]        = useState(false)
 
   const teamRoster = (tid) => players.filter((p) => p.soldTo === tid)
 
-  const team   = TEAMS.find((t) => t.id === activeTeam)
-  const roster = teamRoster(activeTeam)
+  const team   = teams.find((t) => t.id === activeTeam) || teams[0]
+  const roster = team ? teamRoster(team.id) : []
 
   const handleRelease = async (playerId) => {
     setBusy(true)
@@ -36,7 +36,7 @@ export default function TeamsView({ players, onRelease, isAdmin, showToast }) {
         <div style={{ padding: '13px 16px', borderBottom: '1px solid #1e3a5f' }}>
           <span className="teko" style={{ fontSize: 18, letterSpacing: 1.5, color: '#fff' }}>FRANCHISES</span>
         </div>
-        {TEAMS.map((t) => {
+        {teams.map((t) => {
           const count = teamRoster(t.id).length
           const act   = activeTeam === t.id
           return (

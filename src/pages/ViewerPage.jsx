@@ -1,26 +1,22 @@
 // src/pages/ViewerPage.jsx
 
 import { useState } from 'react'
-import { usePlayers }        from '../hooks/usePlayers'
-import { TEAMS, ROLE_COLORS } from '../lib/constants'
-import TeamsView             from '../components/TeamsView'
+import { usePlayers } from '../hooks/usePlayers'
+import { useTeams }   from '../hooks/useTeams'
+import { ROLE_COLORS } from '../lib/constants'
+import TeamsView      from '../components/TeamsView'
 
 function StatBar({ players }) {
-  const available = players.filter((p) => p.status === 'available').length
-  const sold      = players.filter((p) => p.status === 'sold').length
-
+  const available = players.filter(p => p.status === 'available').length
+  const sold      = players.filter(p => p.status === 'sold').length
   return (
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
       {[
         { label: 'Total Players', value: players.length, color: '#7ab4d8' },
         { label: 'Available',     value: available,      color: '#00c864' },
         { label: 'Sold',          value: sold,           color: '#ffb060' },
-      ].map((s) => (
-        <div key={s.label} style={{
-          flex: 1, minWidth: 120,
-          background: '#0a1e35', border: '1px solid #1e3a5f',
-          borderRadius: 12, padding: '14px 20px', textAlign: 'center',
-        }}>
+      ].map(s => (
+        <div key={s.label} style={{ flex: 1, minWidth: 120, background: '#0a1e35', border: '1px solid #1e3a5f', borderRadius: 12, padding: '14px 20px', textAlign: 'center' }}>
           <div className="teko" style={{ fontSize: 34, color: s.color, lineHeight: 1 }}>{s.value}</div>
           <div style={{ fontSize: 11, color: '#4a7fa8', textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>{s.label}</div>
         </div>
@@ -29,38 +25,28 @@ function StatBar({ players }) {
   )
 }
 
-function TeamSummaryCards({ players }) {
+function TeamSummaryCards({ players, teams }) {
   return (
     <div>
       <div className="teko" style={{ fontSize: 18, letterSpacing: 2, color: '#4a7fa8', marginBottom: 12 }}>TEAM SQUADS</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 12 }}>
-        {TEAMS.map((team) => {
-          const roster = players.filter((p) => p.soldTo === team.id)
+        {teams.map(team => {
+          const roster = players.filter(p => p.soldTo === team.id)
           return (
-            <div key={team.id} style={{
-              background: '#0a1e35', border: '1px solid #1e3a5f',
-              borderLeft: `3px solid ${team.color}`,
-              borderRadius: 12, padding: 16,
-            }}>
+            <div key={team.id} style={{ background: '#0a1e35', border: '1px solid #1e3a5f', borderLeft: `3px solid ${team.color}`, borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: 8, background: team.color, flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, color: team.accent, fontWeight: 800,
-                }}>{team.short}</div>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: team.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: team.accent, fontWeight: 800, flexShrink: 0 }}>
+                  {team.short}
+                </div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{team.name}</div>
                   <div style={{ fontSize: 11, color: '#4a7fa8' }}>{roster.length} players</div>
                 </div>
               </div>
-
               {roster.length > 0 ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {roster.map((p) => (
-                    <span key={p.id} style={{
-                      background: '#08111e', border: '1px solid #1e3a5f',
-                      borderRadius: 6, padding: '3px 8px', fontSize: 11, color: '#c8d8e8',
-                    }}>
+                  {roster.map(p => (
+                    <span key={p.id} style={{ background: '#08111e', border: '1px solid #1e3a5f', borderRadius: 6, padding: '3px 8px', fontSize: 11, color: '#c8d8e8' }}>
                       {p.name}
                     </span>
                   ))}
@@ -77,8 +63,12 @@ function TeamSummaryCards({ players }) {
 }
 
 export default function ViewerPage() {
-  const { players, loading, error } = usePlayers()
+  const { players, loading: pLoad, error: pErr } = usePlayers()
+  const { teams,   loading: tLoad, error: tErr } = useTeams()
   const [view, setView] = useState('summary')
+
+  const loading = pLoad || tLoad
+  const error   = pErr  || tErr
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
@@ -118,19 +108,9 @@ export default function ViewerPage() {
       {/* Nav */}
       <div style={{ background: '#0a1628', borderBottom: '1px solid #1e3a5f', padding: '0 20px' }}>
         <div style={{ maxWidth: 1440, margin: '0 auto', display: 'flex' }}>
-          {[
-            { id: 'summary', label: '📊 Summary' },
-            { id: 'teams',   label: '🏆 Full Squads' },
-          ].map((t) => (
+          {[{ id: 'summary', label: '📊 Summary' }, { id: 'teams', label: '🏆 Full Squads' }].map(t => (
             <button key={t.id} onClick={() => setView(t.id)}
-              style={{
-                background: 'none', border: 'none',
-                borderBottom: view === t.id ? '2px solid #00c864' : '2px solid transparent',
-                padding: '13px 18px', color: view === t.id ? '#00c864' : '#4a7fa8',
-                fontWeight: 600, fontSize: 14, letterSpacing: 0.8,
-                cursor: 'pointer', transition: 'color .15s',
-              }}
-            >
+              style={{ background: 'none', border: 'none', borderBottom: view === t.id ? '2px solid #00c864' : '2px solid transparent', padding: '13px 18px', color: view === t.id ? '#00c864' : '#4a7fa8', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'color .15s' }}>
               {t.label}
             </button>
           ))}
@@ -141,16 +121,11 @@ export default function ViewerPage() {
         {view === 'summary' && (
           <div className="fade-up">
             <StatBar players={players} />
-            <TeamSummaryCards players={players} />
+            <TeamSummaryCards players={players} teams={teams} />
           </div>
         )}
         {view === 'teams' && (
-          <TeamsView
-            players={players}
-            onRelease={() => {}}
-            isAdmin={false}
-            showToast={() => {}}
-          />
+          <TeamsView players={players} teams={teams} onRelease={() => {}} isAdmin={false} showToast={() => {}} />
         )}
       </div>
     </div>
