@@ -8,7 +8,7 @@ const mapRow = (row) => ({
   name:   row.name,
   role:   row.role,
   rating: row.rating,
-  status: row.status,       // 'available' or 'sold' — always mapped
+  status: row.status,
   soldTo: row.sold_to,
 })
 
@@ -17,7 +17,6 @@ export function usePlayers() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
-  // Initial fetch
   useEffect(() => {
     const fetch = async () => {
       setLoading(true)
@@ -32,7 +31,6 @@ export function usePlayers() {
     fetch()
   }, [])
 
-  // Realtime — INSERT / UPDATE / DELETE
   useEffect(() => {
     const channel = supabase
       .channel('players-realtime')
@@ -40,7 +38,6 @@ export function usePlayers() {
         setPlayers(prev => [...prev, mapRow(payload.new)].sort((a, b) => a.id - b.id))
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'players' }, (payload) => {
-        // Full row replace — status + soldTo both update correctly
         setPlayers(prev => prev.map(p => p.id === payload.new.id ? mapRow(payload.new) : p))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'players' }, (payload) => {
@@ -60,19 +57,31 @@ export function usePlayers() {
   }, [])
 
   const releasePlayer = useCallback(async (playerId) => {
+    // Release player back to pool
     const { error } = await supabase
       .from('players')
       .update({ status: 'available', sold_to: null })
       .eq('id', playerId)
     if (error) throw new Error(error.message)
+
+    // Auto-clear C/VC — no manual SQL ever needed
+    await supabase.from('teams').update({ captain_id: null }).eq('captain_id', playerId)
+    await supabase.from('teams').update({ vice_captain_id: null }).eq('vice_captain_id', playerId)
   }, [])
 
   const resetAuction = useCallback(async () => {
+    // Reset all players to available
     const { error } = await supabase
       .from('players')
       .update({ status: 'available', sold_to: null })
       .neq('id', 0)
     if (error) throw new Error(error.message)
+
+    // Clear ALL C/VC assignments across all teams
+    await supabase
+      .from('teams')
+      .update({ captain_id: null, vice_captain_id: null })
+      .neq('id', '')
   }, [])
 
   const updatePlayer = useCallback(async (id, fields) => {
@@ -84,6 +93,10 @@ export function usePlayers() {
   }, [])
 
   const deletePlayer = useCallback(async (id) => {
+    // Clear C/VC if this player had a role before deleting
+    await supabase.from('teams').update({ captain_id: null }).eq('captain_id', id)
+    await supabase.from('teams').update({ vice_captain_id: null }).eq('vice_captain_id', id)
+
     const { error } = await supabase.from('players').delete().eq('id', id)
     if (error) throw new Error(error.message)
   }, [])
