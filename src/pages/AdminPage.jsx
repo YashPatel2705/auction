@@ -78,7 +78,7 @@ export default function AdminPage() {
   const [poolJump, setPoolJump] = useState(null)
 
   const { players, loading:pLoad, error:pErr, sellPlayer, releasePlayer, resetAuction, updatePlayer, deletePlayer, addPlayer } = usePlayers()
-  const { teams,   loading:tLoad, error:tErr, addTeam, updateTeam, deleteTeam } = useTeams()
+  const { teams,   loading:tLoad, error:tErr, addTeam, updateTeam, deleteTeam, setCaptain, setViceCaptain } = useTeams()
   const { toast, showToast } = useToast()
 
   const handleReset = async () => {
@@ -152,7 +152,7 @@ export default function AdminPage() {
         {view==='spin'           && <SpinWheel teams={teams} onTeamSelected={team => showToast(`${team.name} is up next!`)} />}
         {view==='auction'        && <AuctionStage players={players} teams={teams} onSell={sellPlayer} showToast={showToast} jumpToPlayer={poolJump} onJumpConsumed={() => setPoolJump(null)} />}
         {view==='pool'           && <PlayerPool players={players} onSelectForAuction={handlePoolSelect} />}
-        {view==='teams'          && <TeamsView players={players} teams={teams} onRelease={releasePlayer} isAdmin={true} showToast={showToast} />}
+        {view==='teams'          && <TeamsView players={players} teams={teams} onRelease={releasePlayer} setCaptain={setCaptain} setViceCaptain={setViceCaptain} isAdmin={true} showToast={showToast} />}
         {view==='manage-players' && <ManagePlayers players={players} onUpdate={updatePlayer} onDelete={deletePlayer} onAdd={addPlayer} showToast={showToast} />}
         {view==='manage-teams'   && <ManageTeams teams={teams} onAdd={addTeam} onUpdate={updateTeam} onDelete={deleteTeam} showToast={showToast} />}
       </div>

@@ -1,9 +1,9 @@
 // src/pages/ViewerPage.jsx
 
 import { useState } from 'react'
-import { usePlayers }  from '../hooks/usePlayers'
-import { useTeams }    from '../hooks/useTeams'
-import TeamsView       from '../components/TeamsView'
+import { usePlayers } from '../hooks/usePlayers'
+import { useTeams }   from '../hooks/useTeams'
+import TeamsView      from '../components/TeamsView'
 
 function StatBar({ players }) {
   const available = players.filter(p => p.status === 'available').length
@@ -24,13 +24,38 @@ function StatBar({ players }) {
   )
 }
 
+function RoleBadge({ type }) {
+  const isC = type === 'C'
+  return (
+    <span style={{
+      display:'inline-flex', alignItems:'center', justifyContent:'center',
+      width:18, height:18, borderRadius:4,
+      background: isC ? '#f59e0b' : '#8b5cf6',
+      color:'#fff', fontSize:9, fontWeight:800, flexShrink:0,
+    }}>
+      {type}
+    </span>
+  )
+}
+
 function TeamSummaryCards({ players, teams }) {
   return (
     <div>
       <div className="teko" style={{ fontSize:19, letterSpacing:2, color:'#5a8fba', marginBottom:12 }}>TEAM SQUADS</div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:12 }}>
         {teams.map(team => {
-          const roster = players.filter(p => p.soldTo === team.id)
+          // Only players currently sold (status=sold) to this team
+          const roster = players.filter(p => p.status === 'sold' && p.soldTo === team.id)
+
+          // C first, VC second, rest after
+          const sorted = roster.slice().sort((a, b) => {
+            if (a.id === team.captainId)     return -1
+            if (b.id === team.captainId)     return  1
+            if (a.id === team.viceCaptainId) return -1
+            if (b.id === team.viceCaptainId) return  1
+            return 0
+          })
+
           return (
             <div key={team.id} style={{ background:'#0a1e35', border:'1px solid #1e3a5f', borderLeft:`3px solid ${team.color}`, borderRadius:12, padding:16 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
@@ -42,13 +67,29 @@ function TeamSummaryCards({ players, teams }) {
                   <div style={{ fontSize:12, color:'#5a8fba', fontWeight:600 }}>{roster.length} players</div>
                 </div>
               </div>
+
+              {/* Single chip list — C/VC first, badges inline, no duplicate row */}
               {roster.length > 0 ? (
                 <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
-                  {roster.map(p => (
-                    <span key={p.id} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:6, padding:'3px 9px', fontSize:12, color:'#d0e0f0', fontWeight:600 }}>
-                      {p.name}
-                    </span>
-                  ))}
+                  {sorted.map(p => {
+                    const isC  = p.id === team.captainId
+                    const isVC = p.id === team.viceCaptainId
+                    return (
+                      <span key={p.id} style={{
+                        display:'flex', alignItems:'center', gap:4,
+                        background:'#08111e',
+                        border:`1px solid ${isC ? '#f59e0b55' : isVC ? '#8b5cf655' : '#1e3a5f'}`,
+                        borderRadius:6, padding:'3px 9px',
+                        fontSize:12,
+                        color: isC ? '#f59e0b' : isVC ? '#a78bfa' : '#d0e0f0',
+                        fontWeight:600,
+                      }}>
+                        {isC  && <RoleBadge type="C"  />}
+                        {isVC && <RoleBadge type="VC" />}
+                        {p.name}
+                      </span>
+                    )
+                  })}
                 </div>
               ) : (
                 <div style={{ fontSize:12, color:'#2a4a6f', fontWeight:600 }}>No players acquired yet</div>
@@ -87,7 +128,6 @@ export default function ViewerPage() {
 
   return (
     <div style={{ minHeight:'100vh' }}>
-      {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#0a1628,#0d2040)', borderBottom:'1px solid #1e3a5f' }}>
         <div style={{ maxWidth:1440, margin:'0 auto', padding:'0 16px', height:58, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -104,7 +144,6 @@ export default function ViewerPage() {
         </div>
       </div>
 
-      {/* Nav */}
       <div className="mob-nav" style={{ background:'#0a1628', borderBottom:'1px solid #1e3a5f', padding:'0 16px' }}>
         <div style={{ maxWidth:1440, margin:'0 auto', display:'flex' }}>
           {[{ id:'summary', label:'📊 Summary' }, { id:'teams', label:'🏆 Full Squads' }].map(t => (

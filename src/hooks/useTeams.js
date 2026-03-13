@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 const mapRow = (row) => ({
-  id:        row.id,
-  name:      row.name,
-  short:     row.short,
-  color:     row.color,
-  accent:    row.accent,
-  sortOrder: row.sort_order,
+  id:            row.id,
+  name:          row.name,
+  short:         row.short,
+  color:         row.color,
+  accent:        row.accent,
+  sortOrder:     row.sort_order,
+  captainId:     row.captain_id     ?? null,
+  viceCaptainId: row.vice_captain_id ?? null,
 })
 
 export function useTeams() {
@@ -81,5 +83,31 @@ export function useTeams() {
     if (error) throw new Error(error.message)
   }, [])
 
-  return { teams, loading, error, addTeam, updateTeam, deleteTeam }
+  // ── Captain / Vice Captain ──────────────────────────────────────
+  const setCaptain = useCallback(async (teamId, playerId) => {
+    const team = teams.find(t => t.id === teamId)
+    // Toggle off if same player clicked again
+    const newVal = team?.captainId === playerId ? null : playerId
+    // If this player is already VC, clear VC too
+    const clearVC = team?.viceCaptainId === playerId ? { vice_captain_id: null } : {}
+    const { error } = await supabase
+      .from('teams')
+      .update({ captain_id: newVal, ...clearVC })
+      .eq('id', teamId)
+    if (error) throw new Error(error.message)
+  }, [teams])
+
+  const setViceCaptain = useCallback(async (teamId, playerId) => {
+    const team = teams.find(t => t.id === teamId)
+    const newVal = team?.viceCaptainId === playerId ? null : playerId
+    // If this player is already C, clear C too
+    const clearC = team?.captainId === playerId ? { captain_id: null } : {}
+    const { error } = await supabase
+      .from('teams')
+      .update({ vice_captain_id: newVal, ...clearC })
+      .eq('id', teamId)
+    if (error) throw new Error(error.message)
+  }, [teams])
+
+  return { teams, loading, error, addTeam, updateTeam, deleteTeam, setCaptain, setViceCaptain }
 }
