@@ -1,7 +1,7 @@
 // src/pages/AdminPage.jsx
 
 import { useState } from 'react'
-import { ADMIN_PASSWORD }  from '../lib/constants'
+import { useAuth }         from '../hooks/useAuth'
 import { usePlayers }      from '../hooks/usePlayers'
 import { useTeams }        from '../hooks/useTeams'
 import { useToast }        from '../hooks/useToast'
@@ -13,32 +13,47 @@ import ManagePlayers       from '../components/ManagePlayers'
 import ManageTeams         from '../components/ManageTeams'
 import Toast               from '../components/Toast'
 
-function PasswordGate({ onUnlock }) {
-  const [input, setInput] = useState('')
-  const [error, setError] = useState(false)
-  const attempt = () => {
-    if (input === ADMIN_PASSWORD) { onUnlock() }
-    else { setError(true); setTimeout(() => setError(false), 1500) }
+function LoginGate({ onSignIn }) {
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [error,    setError]    = useState('')
+  const [busy,     setBusy]     = useState(false)
+
+  const attempt = async () => {
+    if (!email || !password) return
+    setBusy(true)
+    setError('')
+    try {
+      await onSignIn(email, password)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
   }
+
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20, padding:'0 16px' }}>
       <div style={{ fontSize:52 }}>🔒</div>
-      <div className="teko" style={{ fontSize:28, letterSpacing:2, color:'#fff' }}>ADMIN ACCESS</div>
-      <div style={{ display:'flex', gap:8, width:'100%', maxWidth:400 }}>
-        <input type="password" placeholder="Enter admin password…" value={input}
-          onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && attempt()}
-          style={{ flex:1, background: error?'#3a0d0d':'#0a1e35', border:`1px solid ${error?'#ef4444':'#1e3a5f'}`, borderRadius:10, padding:'12px 16px', color:'#fff', fontSize:15, fontWeight:600, transition:'all .2s' }} />
-        <button onClick={attempt}
-          style={{ background:'linear-gradient(135deg,#00c864,#007a3d)', border:'none', borderRadius:10, padding:'12px 22px', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
-          Enter
+      <div className="teko" style={{ fontSize:28, letterSpacing:2, color:'#fff' }}>ADMIN LOGIN</div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:380 }}>
+        <input type="email" placeholder="Email address" value={email}
+          onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && attempt()}
+          style={{ background:'#0a1e35', border:'1px solid #1e3a5f', borderRadius:10, padding:'12px 16px', color:'#fff', fontSize:15, fontWeight:600 }} />
+        <input type="password" placeholder="Password" value={password}
+          onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && attempt()}
+          style={{ background:'#0a1e35', border:'1px solid #1e3a5f', borderRadius:10, padding:'12px 16px', color:'#fff', fontSize:15, fontWeight:600 }} />
+        <button onClick={attempt} disabled={busy}
+          style={{ background: busy ? '#1e3a5f' : 'linear-gradient(135deg,#00c864,#007a3d)', border:'none', borderRadius:10, padding:13, color:'#fff', fontSize:15, fontWeight:700, cursor: busy ? 'not-allowed' : 'pointer' }}>
+          {busy ? 'Signing in…' : 'Sign In'}
         </button>
       </div>
-      {error && <div style={{ color:'#ef4444', fontSize:13, fontWeight:700 }}>Incorrect password</div>}
+      {error && <div style={{ color:'#ef4444', fontSize:13, fontWeight:700 }}>❌ {error}</div>}
     </div>
   )
 }
 
-function Header({ players, onReset }) {
+function Header({ players, user, onReset, onSignOut }) {
   const available = players.filter(p => p.status === 'available').length
   const sold      = players.filter(p => p.status === 'sold').length
   return (
@@ -66,6 +81,15 @@ function Header({ players, onReset }) {
             onMouseLeave={e => e.currentTarget.style.background='#3a0d0d'}>
             ↺ Reset All
           </button>
+          <div style={{ display:'flex', alignItems:'center', gap:8, background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'5px 12px' }}>
+            <span style={{ fontSize:11, color:'#5a8fba', fontWeight:600, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              {user?.email}
+            </span>
+            <button onClick={onSignOut}
+              style={{ background:'none', border:'none', color:'#ef4444', fontSize:12, fontWeight:700, cursor:'pointer', padding:0 }}>
+              Sign out
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -73,13 +97,24 @@ function Header({ players, onReset }) {
 }
 
 export default function AdminPage() {
-  const [unlocked, setUnlocked] = useState(false)
+  const { session, loading: authLoading, user, signIn, signOut } = useAuth()
   const [view,     setView]     = useState('auction')
   const [poolJump, setPoolJump] = useState(null)
 
   const { players, loading:pLoad, error:pErr, sellPlayer, releasePlayer, resetAuction, updatePlayer, deletePlayer, addPlayer } = usePlayers()
   const { teams,   loading:tLoad, error:tErr, addTeam, updateTeam, deleteTeam, setCaptain, setViceCaptain } = useTeams()
   const { toast, showToast } = useToast()
+
+  // Checking localStorage for existing session
+  if (authLoading) return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
+      <div style={{ fontSize:52 }}>🏏</div>
+      <div className="teko" style={{ fontSize:24, letterSpacing:3, color:'#00c864' }}>LOADING…</div>
+    </div>
+  )
+
+  // Not logged in
+  if (!session) return <LoginGate onSignIn={signIn} />
 
   const handleReset = async () => {
     if (!window.confirm('Reset entire auction? All players return to pool.')) return
@@ -88,8 +123,6 @@ export default function AdminPage() {
   }
 
   const handlePoolSelect = (player) => { setPoolJump(player); setView('auction') }
-
-  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />
 
   const loading = pLoad || tLoad
   const error   = pErr  || tErr
@@ -123,7 +156,7 @@ export default function AdminPage() {
 
   return (
     <div style={{ minHeight:'100vh' }}>
-      <Header players={players} onReset={handleReset} />
+      <Header players={players} user={user} onReset={handleReset} onSignOut={signOut} />
 
       <div className="mob-nav" style={{ background:'#0a1628', borderBottom:'1px solid #1e3a5f', padding:'0 20px' }}>
         <div style={{ maxWidth:1440, margin:'0 auto', display:'flex' }}>
