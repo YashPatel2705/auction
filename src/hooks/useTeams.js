@@ -10,8 +10,9 @@ const mapRow = (row) => ({
   color:         row.color,
   accent:        row.accent,
   sortOrder:     row.sort_order,
-  captainId:     row.captain_id     ?? null,
+  captainId:     row.captain_id      ?? null,
   viceCaptainId: row.vice_captain_id ?? null,
+  points:        row.points          ?? 100000,
 })
 
 export function useTeams() {
@@ -19,7 +20,6 @@ export function useTeams() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
-  // Initial fetch
   useEffect(() => {
     const fetch = async () => {
       setLoading(true)
@@ -34,7 +34,6 @@ export function useTeams() {
     fetch()
   }, [])
 
-  // Realtime — INSERT, UPDATE, DELETE
   useEffect(() => {
     const channel = supabase
       .channel('teams-realtime')
@@ -48,7 +47,6 @@ export function useTeams() {
         setTeams(prev => prev.filter(t => t.id !== payload.old.id))
       })
       .subscribe()
-
     return () => supabase.removeChannel(channel)
   }, [])
 
@@ -61,6 +59,7 @@ export function useTeams() {
       color,
       accent,
       sort_order: maxOrder + 1,
+      points: 100000,
     })
     if (error) throw new Error(error.message)
   }, [teams])
@@ -83,12 +82,9 @@ export function useTeams() {
     if (error) throw new Error(error.message)
   }, [])
 
-  // ── Captain / Vice Captain ──────────────────────────────────────
   const setCaptain = useCallback(async (teamId, playerId) => {
     const team = teams.find(t => t.id === teamId)
-    // Toggle off if same player clicked again
     const newVal = team?.captainId === playerId ? null : playerId
-    // If this player is already VC, clear VC too
     const clearVC = team?.viceCaptainId === playerId ? { vice_captain_id: null } : {}
     const { error } = await supabase
       .from('teams')
@@ -100,7 +96,6 @@ export function useTeams() {
   const setViceCaptain = useCallback(async (teamId, playerId) => {
     const team = teams.find(t => t.id === teamId)
     const newVal = team?.viceCaptainId === playerId ? null : playerId
-    // If this player is already C, clear C too
     const clearC = team?.captainId === playerId ? { captain_id: null } : {}
     const { error } = await supabase
       .from('teams')

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth }         from '../hooks/useAuth'
 import { usePlayers }      from '../hooks/usePlayers'
 import { useTeams }        from '../hooks/useTeams'
+import { useBundles }      from '../hooks/useBundles'
 import { useToast }        from '../hooks/useToast'
 import AuctionStage        from '../components/AuctionStage'
 import PlayerPool          from '../components/PlayerPool'
@@ -11,6 +12,7 @@ import TeamsView           from '../components/TeamsView'
 import SpinWheel           from '../components/SpinWheel'
 import ManagePlayers       from '../components/ManagePlayers'
 import ManageTeams         from '../components/ManageTeams'
+import BundleAuction       from '../components/BundleAuction'
 import Toast               from '../components/Toast'
 
 function LoginGate({ onSignIn }) {
@@ -23,13 +25,9 @@ function LoginGate({ onSignIn }) {
     if (!email || !password) return
     setBusy(true)
     setError('')
-    try {
-      await onSignIn(email, password)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
+    try { await onSignIn(email, password) }
+    catch (err) { setError(err.message) }
+    finally { setBusy(false) }
   }
 
   return (
@@ -103,9 +101,9 @@ export default function AdminPage() {
 
   const { players, loading:pLoad, error:pErr, sellPlayer, releasePlayer, resetAuction, updatePlayer, deletePlayer, addPlayer } = usePlayers()
   const { teams,   loading:tLoad, error:tErr, addTeam, updateTeam, deleteTeam, setCaptain, setViceCaptain } = useTeams()
+  const { bundles, createBundle, deleteBundle, activateBundle, deactivateBundle, sellBundle } = useBundles()
   const { toast, showToast } = useToast()
 
-  // Checking localStorage for existing session
   if (authLoading) return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
       <div style={{ fontSize:52 }}>🏏</div>
@@ -113,12 +111,11 @@ export default function AdminPage() {
     </div>
   )
 
-  // Not logged in
   if (!session) return <LoginGate onSignIn={signIn} />
 
   const handleReset = async () => {
-    if (!window.confirm('Reset entire auction? All players return to pool.')) return
-    try { await resetAuction(); showToast('Auction reset — all players back in pool') }
+    if (!window.confirm('Reset entire auction? All players, points and bundles reset.')) return
+    try { await resetAuction(); showToast('Auction reset — all players, points and bundles reset') }
     catch (err) { showToast(err.message, 'error') }
   }
 
@@ -143,15 +140,17 @@ export default function AdminPage() {
     </div>
   )
 
-  const available = players.filter(p => p.status === 'available').length
+  const available      = players.filter(p => p.status === 'available').length
+  const activeBundles  = bundles.filter(b => b.status === 'active').length
 
   const TABS = [
     { id:'spin',           icon:'🎯', label:'Spin Wheel'    },
     { id:'auction',        icon:'🔨', label:'Auction Stage' },
-    { id:'pool',           icon:'👥', label:'Player Pool', badge:available },
-    { id:'teams',          icon:'🏆', label:'Teams'         },
-    { id:'manage-players', icon:'⚙️', label:'Edit Players'  },
-    { id:'manage-teams',   icon:'🛠️', label:'Edit Teams'    },
+    { id:'pool',           icon:'👥', label:'Player Pool',   badge: available },
+    { id:'bundles',        icon:'📦', label:'Bundles',       badge: activeBundles || null },
+    { id:'teams',          icon:'🏆', label:'Teams'          },
+    { id:'manage-players', icon:'⚙️', label:'Edit Players'   },
+    { id:'manage-teams',   icon:'🛠️', label:'Edit Teams'     },
   ]
 
   return (
@@ -172,7 +171,7 @@ export default function AdminPage() {
               }}>
               {t.icon} {t.label}
               {t.badge != null && (
-                <span style={{ background:'#1e3a5f', borderRadius:10, padding:'1px 7px', fontSize:11, color:'#7ab4d8', fontWeight:700 }}>
+                <span style={{ background: t.id === 'bundles' ? '#00c86433' : '#1e3a5f', borderRadius:10, padding:'1px 7px', fontSize:11, color: t.id === 'bundles' ? '#00c864' : '#7ab4d8', fontWeight:700 }}>
                   {t.badge}
                 </span>
               )}
@@ -185,6 +184,19 @@ export default function AdminPage() {
         {view==='spin'           && <SpinWheel teams={teams} onTeamSelected={team => showToast(`${team.name} is up next!`)} />}
         {view==='auction'        && <AuctionStage players={players} teams={teams} onSell={sellPlayer} showToast={showToast} jumpToPlayer={poolJump} onJumpConsumed={() => setPoolJump(null)} />}
         {view==='pool'           && <PlayerPool players={players} onSelectForAuction={handlePoolSelect} />}
+        {view==='bundles'        && (
+          <BundleAuction
+            players={players}
+            teams={teams}
+            bundles={bundles}
+            onCreate={createBundle}
+            onDelete={deleteBundle}
+            onActivate={activateBundle}
+            onDeactivate={deactivateBundle}
+            onSell={sellBundle}
+            showToast={showToast}
+          />
+        )}
         {view==='teams'          && <TeamsView players={players} teams={teams} onRelease={releasePlayer} setCaptain={setCaptain} setViceCaptain={setViceCaptain} isAdmin={true} showToast={showToast} />}
         {view==='manage-players' && <ManagePlayers players={players} onUpdate={updatePlayer} onDelete={deletePlayer} onAdd={addPlayer} showToast={showToast} />}
         {view==='manage-teams'   && <ManageTeams teams={teams} onAdd={addTeam} onUpdate={updateTeam} onDelete={deleteTeam} showToast={showToast} />}
