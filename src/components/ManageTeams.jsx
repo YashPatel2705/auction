@@ -8,6 +8,13 @@ const PRESET_COLORS = [
   '#6A0DAD','#00897B','#1565C0','#AD1457','#2E7D32',
 ]
 
+// Auto-generate a unique ID — short name + random suffix to avoid clashes
+function generateId(short) {
+  const base    = short.toUpperCase().trim().slice(0, 4)
+  const suffix  = Math.random().toString(36).slice(2, 5).toUpperCase()
+  return `${base}_${suffix}`
+}
+
 function ColorPicker({ value, onChange }) {
   return (
     <div style={{ marginBottom: 14 }}>
@@ -28,7 +35,6 @@ function ColorPicker({ value, onChange }) {
 
 function TeamModal({ team, onSave, onClose }) {
   const isEdit = !!team
-  const [id,     setId]     = useState(team?.id     || '')
   const [name,   setName]   = useState(team?.name   || '')
   const [short,  setShort]  = useState(team?.short  || '')
   const [color,  setColor]  = useState(team?.color  || '#004BA0')
@@ -39,10 +45,11 @@ function TeamModal({ team, onSave, onClose }) {
   const save = async () => {
     if (!name.trim())  return setErr('Team name cannot be empty')
     if (!short.trim()) return setErr('Short name cannot be empty')
-    if (!isEdit && !id.trim()) return setErr('Team ID cannot be empty')
     setBusy(true)
     try {
-      await onSave({ id: id.toUpperCase().trim(), name, short, color, accent })
+      // For new teams, auto-generate a unique ID — no manual input needed
+      const id = isEdit ? team.id : generateId(short)
+      await onSave({ id, name, short, color, accent })
       onClose()
     } catch (e) {
       setErr(e.message)
@@ -60,14 +67,6 @@ function TeamModal({ team, onSave, onClose }) {
         <div className="teko" style={{ fontSize: 22, color: '#fff', marginBottom: 20, letterSpacing: 1 }}>
           {isEdit ? '✏️ Edit Team' : '➕ Add Team'}
         </div>
-
-        {!isEdit && (
-          <>
-            <label style={{ fontSize: 11, color: '#4a7fa8', letterSpacing: 1, display: 'block', marginBottom: 6 }}>TEAM ID (unique, e.g. "GT")</label>
-            <input value={id} onChange={e => setId(e.target.value.toUpperCase())} placeholder="GT"
-              style={{ width: '100%', background: '#08111e', border: '1px solid #1e3a5f', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: 14, marginBottom: 14, boxSizing: 'border-box' }} />
-          </>
-        )}
 
         <label style={{ fontSize: 11, color: '#4a7fa8', letterSpacing: 1, display: 'block', marginBottom: 6 }}>FULL TEAM NAME</label>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Gujarat Titans"
@@ -162,7 +161,6 @@ export default function ManageTeams({ teams, onAdd, onUpdate, onDelete, showToas
 
   return (
     <div className="fade-up">
-      {/* Header bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ color: '#4a7fa8', fontSize: 14 }}>{teams.length} teams registered</div>
         <button onClick={() => setShowAdd(true)}
@@ -171,21 +169,17 @@ export default function ManageTeams({ teams, onAdd, onUpdate, onDelete, showToas
         </button>
       </div>
 
-      {/* Teams grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 12 }}>
         {teams.map(team => (
           <div key={team.id}
             style={{ background: '#0a1e35', border: '1px solid #1e3a5f', borderLeft: `4px solid ${team.color}`, borderRadius: 14, padding: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
-            {/* Badge */}
             <div style={{ width: 52, height: 52, borderRadius: 12, background: team.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: team.accent, fontWeight: 800, flexShrink: 0 }}>
               {team.short}
             </div>
-            {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 15, color: '#fff', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name}</div>
-              <div style={{ fontSize: 11, color: '#4a7fa8', marginTop: 3 }}>ID: {team.id}</div>
+              <div style={{ fontSize: 11, color: '#4a7fa8', marginTop: 3 }}>{team.short}</div>
             </div>
-            {/* Actions */}
             <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
               <button onClick={() => setEditTarget(team)} title="Edit"
                 style={{ background: '#1e3a5f', border: 'none', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', color: '#7ab4d8', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -24,7 +24,6 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
   const startTimeRef    = useRef(null)
   const targetRotRef    = useRef(0)
   const currentRotRef   = useRef(0)
-  // Keep a ref to remaining so animate() closure always reads current value
   const remainingRef    = useRef([])
   const teamsRef        = useRef([])
 
@@ -33,8 +32,8 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
 
   const remaining = teams.filter(t => !spinOrder.find(s => s.id === t.id))
   const allDone   = remaining.length === 0
+  const lastTeam  = remaining.length === 1 ? remaining[0] : null  // ← the last remaining team
 
-  // Keep refs in sync
   remainingRef.current = remaining
   teamsRef.current     = teams
 
@@ -74,7 +73,6 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
       ctx.restore()
     })
 
-    // Center circle
     ctx.beginPath()
     ctx.arc(cx, cy, 22, 0, 2 * Math.PI)
     ctx.fillStyle = '#070d14'
@@ -101,7 +99,6 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
     if (progress < 1) {
       animRef.current = requestAnimationFrame(animate)
     } else {
-      // Use refs so we always get the latest value, not a stale closure
       const list     = remainingRef.current.length > 0 ? remainingRef.current : teamsRef.current
       const slice    = (2 * Math.PI) / list.length
       const finalRot = targetRotRef.current % (2 * Math.PI)
@@ -124,7 +121,6 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
     animRef.current = requestAnimationFrame(animate)
   }
 
-  // Redraw when teams change or canvas size changes
   useEffect(() => {
     drawWheel(currentRotRef.current)
   }, [remaining.length, teams.length, canvasSize, drawWheel])
@@ -138,6 +134,13 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
     setSpinOrder(prev => [...prev, winner])
     setWinner(null)
     onTeamSelected?.(winner)
+  }
+
+  // Auto-add last team without spinning
+  const confirmLastTeam = () => {
+    if (!lastTeam) return
+    setSpinOrder(prev => [...prev, lastTeam])
+    onTeamSelected?.(lastTeam)
   }
 
   const confirmReset = () => {
@@ -162,6 +165,7 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
         </div>
 
         <div style={{ padding:24, display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
+
           {/* Pointer + canvas */}
           <div style={{ position:'relative', display:'inline-block' }}>
             <div style={{ position:'absolute', top:-14, left:'50%', transform:'translateX(-50%)', width:0, height:0, borderLeft:'10px solid transparent', borderRight:'10px solid transparent', borderTop:'20px solid #00c864', zIndex:10, filter:'drop-shadow(0 2px 4px rgba(0,200,100,0.5))' }} />
@@ -169,7 +173,20 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
               style={{ borderRadius:'50%', display:'block', boxShadow:'0 0 40px rgba(0,0,0,0.6)' }} />
           </div>
 
-          {/* Winner banner */}
+          {/* ── Last team auto-select banner ── */}
+          {lastTeam && !winner && !spinning && (
+            <div className="slide-in" style={{ background:lastTeam.color+'22', border:`2px solid ${lastTeam.color}`, borderRadius:14, padding:'16px 24px', textAlign:'center', width:'100%' }}>
+              <div style={{ fontSize:11, color:'#5a8fba', letterSpacing:2, marginBottom:4, fontWeight:700 }}>LAST TEAM REMAINING</div>
+              <div className="teko" style={{ fontSize:28, color:'#fff', letterSpacing:1 }}>{lastTeam.name}</div>
+              <div style={{ fontSize:12, color:'#5a8fba', fontWeight:600, marginBottom:12 }}>No need to spin — only one team left!</div>
+              <button onClick={confirmLastTeam}
+                style={{ background:`linear-gradient(135deg,${lastTeam.color},${lastTeam.color}cc)`, border:'none', borderRadius:10, padding:'10px 28px', color:lastTeam.accent, fontSize:14, fontWeight:700, fontFamily:"'Teko',sans-serif", letterSpacing:1.5, cursor:'pointer' }}>
+                ✓ ADD TO LIST
+              </button>
+            </div>
+          )}
+
+          {/* Winner banner (from spin) */}
           {winner && (
             <div className="slide-in" style={{ background:winner.color+'22', border:`2px solid ${winner.color}`, borderRadius:14, padding:'14px 24px', textAlign:'center', width:'100%' }}>
               <div style={{ fontSize:11, color:'#5a8fba', letterSpacing:2, marginBottom:4, fontWeight:700 }}>SELECTED TEAM</div>
@@ -181,10 +198,18 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
             </div>
           )}
 
-          {!winner && (
+          {/* Spin button — hide when last team showing or all done */}
+          {!winner && !lastTeam && (
             <button onClick={spin} disabled={spinning || allDone || teams.length === 0}
               style={{ background: allDone||spinning ? '#1e3a5f' : 'linear-gradient(135deg,#00c864,#007a3d)', border:'none', borderRadius:12, padding:'14px 48px', color:'#fff', fontSize:18, fontFamily:"'Teko',sans-serif", letterSpacing:2, cursor: spinning||allDone ? 'not-allowed':'pointer', opacity: spinning||allDone ? 0.6:1, boxShadow: spinning||allDone ? 'none':'0 4px 20px rgba(0,200,100,0.4)', transition:'all .2s' }}>
               {spinning ? '⏳ SPINNING…' : allDone ? '✅ ALL DONE' : '🎯 SPIN'}
+            </button>
+          )}
+
+          {/* All done — just show reset */}
+          {allDone && teams.length > 0 && !winner && (
+            <button onClick={spin} disabled style={{ background:'#1e3a5f', border:'none', borderRadius:12, padding:'14px 48px', color:'#fff', fontSize:18, fontFamily:"'Teko',sans-serif", letterSpacing:2, cursor:'not-allowed', opacity:0.6 }}>
+              ✅ ALL DONE
             </button>
           )}
 
@@ -228,17 +253,22 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
                     <div style={{ fontSize:14, color:'#fff', fontWeight:700 }}>{team.name}</div>
                     <div style={{ fontSize:10, color:'#5a8fba', marginTop:1, fontWeight:700 }}>Pick #{idx + 1}</div>
                   </div>
-                  {idx === spinOrder.length - 1 && (
+                  {idx === spinOrder.length - 1 && !allDone && (
                     <span style={{ fontSize:10, color:'#00c864', fontWeight:700, letterSpacing:1 }}>LATEST</span>
                   )}
                 </div>
               ))}
-              {remaining.map((_, idx) => (
-                <div key={idx} style={{ background:'#08111e', border:'1px dashed #1e3a5f', borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:12, opacity:0.4 }}>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:'#1e3a5f', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Teko',sans-serif", fontSize:16, color:'#4a7fa8' }}>
+              {remaining.map((team, idx) => (
+                <div key={team.id} style={{ background:'#08111e', border:'1px dashed #1e3a5f', borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:12, opacity: remaining.length === 1 ? 0.8 : 0.4 }}>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background: remaining.length === 1 ? team.color : '#1e3a5f', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Teko',sans-serif", fontSize:16, color: remaining.length === 1 ? team.accent : '#4a7fa8' }}>
                     {spinOrder.length + idx + 1}
                   </div>
-                  <div style={{ fontSize:13, color:'#3a6a8f', fontWeight:600 }}>Waiting to be picked…</div>
+                  <div style={{ fontSize:13, color: remaining.length === 1 ? '#fff' : '#3a6a8f', fontWeight:600 }}>
+                    {remaining.length === 1 ? team.name : 'Waiting to be picked…'}
+                  </div>
+                  {remaining.length === 1 && (
+                    <span style={{ marginLeft:'auto', fontSize:10, color:'#ffb060', fontWeight:700, letterSpacing:1 }}>LAST</span>
+                  )}
                 </div>
               ))}
             </div>

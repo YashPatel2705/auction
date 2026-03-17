@@ -14,7 +14,7 @@ function EditPlayerModal({ player, onSave, onClose }) {
 
   const save = async () => {
     if (!name.trim()) return setErr('Name cannot be empty')
-    if (rating < 1 || rating > 100) return setErr('Rating must be 1–100')
+    if (rating < 1 || rating > 10) return setErr('Rating must be 1–10')
     setBusy(true)
     try {
       await onSave(player.id, { name, rating: Number(rating), role })
@@ -43,8 +43,8 @@ function EditPlayerModal({ player, onSave, onClose }) {
           {ROLE_LIST.map(r => <option key={r}>{r}</option>)}
         </select>
 
-        <label style={{ fontSize: 11, color: '#4a7fa8', letterSpacing: 1, display: 'block', marginBottom: 6 }}>RATING (1–100)</label>
-        <input type="number" min={1} max={100} value={rating} onChange={e => setRating(e.target.value)}
+        <label style={{ fontSize: 11, color: '#4a7fa8', letterSpacing: 1, display: 'block', marginBottom: 6 }}>RATING (1–10)</label>
+        <input type="number" min={1} max={10} value={rating} onChange={e => setRating(e.target.value)}
           style={{ width: '100%', background: '#08111e', border: '1px solid #1e3a5f', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: 14, marginBottom: 14, boxSizing: 'border-box' }} />
 
         {err && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>⚠ {err}</div>}
@@ -99,13 +99,13 @@ function DeleteConfirm({ player, onConfirm, onClose }) {
 function AddPlayerModal({ onAdd, onClose }) {
   const [name,   setName]   = useState('')
   const [role,   setRole]   = useState('Batter')
-  const [rating, setRating] = useState(80)
+  const [rating, setRating] = useState(5)
   const [busy,   setBusy]   = useState(false)
   const [err,    setErr]    = useState('')
 
   const save = async () => {
     if (!name.trim()) return setErr('Name cannot be empty')
-    if (rating < 1 || rating > 100) return setErr('Rating must be 1–100')
+    if (rating < 1 || rating > 10) return setErr('Rating must be 1–10')
     setBusy(true)
     try {
       await onAdd({ name, role, rating })
@@ -134,8 +134,8 @@ function AddPlayerModal({ onAdd, onClose }) {
           {ROLE_LIST.map(r => <option key={r}>{r}</option>)}
         </select>
 
-        <label style={{ fontSize: 11, color: '#4a7fa8', letterSpacing: 1, display: 'block', marginBottom: 6 }}>RATING (1–100)</label>
-        <input type="number" min={1} max={100} value={rating} onChange={e => setRating(e.target.value)}
+        <label style={{ fontSize: 11, color: '#4a7fa8', letterSpacing: 1, display: 'block', marginBottom: 6 }}>RATING (1–10)</label>
+        <input type="number" min={1} max={10} value={rating} onChange={e => setRating(e.target.value)}
           style={{ width: '100%', background: '#08111e', border: '1px solid #1e3a5f', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: 14, marginBottom: 14, boxSizing: 'border-box' }} />
 
         {err && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>⚠ {err}</div>}
@@ -188,7 +188,6 @@ export default function ManagePlayers({ players, onUpdate, onDelete, onAdd, show
 
   return (
     <div className="fade-up">
-      {/* Toolbar */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
         <input placeholder="🔍 Search player…" value={search} onChange={e => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 200, background: '#0a1e35', border: '1px solid #1e3a5f', borderRadius: 10, padding: '10px 14px', color: '#fff', fontSize: 14 }} />
@@ -203,9 +202,7 @@ export default function ManagePlayers({ players, onUpdate, onDelete, onAdd, show
         </button>
       </div>
 
-      {/* Table */}
       <div style={{ background: '#0a1e35', borderRadius: 14, border: '1px solid #1e3a5f', overflow: 'hidden' }}>
-        {/* Header */}
         <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px 80px 100px 90px', gap: 0, padding: '10px 16px', borderBottom: '1px solid #1e3a5f', background: '#08111e' }}>
           {['#', 'NAME', 'ROLE', 'RTG', 'STATUS', 'ACTIONS'].map(h => (
             <div key={h} style={{ fontSize: 10, color: '#3a6a8f', letterSpacing: 1.5, fontWeight: 700 }}>{h}</div>
@@ -229,7 +226,7 @@ export default function ManagePlayers({ players, onUpdate, onDelete, onAdd, show
               <div className="teko" style={{ fontSize: 20, color: '#00c864' }}>{player.rating}</div>
               <div>
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: player.status === 'sold' ? '#ffb060' : '#00c864' }}>
-                  {player.status === 'sold' ? `● SOLD` : '● AVAIL'}
+                  {player.status === 'sold' ? '● SOLD' : '● AVAIL'}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>

@@ -26,8 +26,8 @@ export default function AuctionStage({ players, teams=[], onSell, showToast, jum
       return p.name.toLowerCase().includes(q) && (roleFilter === 'All' || p.role === roleFilter)
     }), [available, search, roleFilter])
 
-  const selectPlayer   = (p) => { setAuctionPlayer(p); setSelectedTeam(null) }
-  const cancelSelection = () => { setAuctionPlayer(null); setSelectedTeam(null) }
+  const selectPlayer    = (p) => { setAuctionPlayer(p); setSelectedTeam(null) }
+  const cancelSelection = ()  => { setAuctionPlayer(null); setSelectedTeam(null) }
 
   const handleSell = async () => {
     if (!auctionPlayer || !selectedTeam) return
@@ -94,9 +94,21 @@ export default function AuctionStage({ players, teams=[], onSell, showToast, jum
                     return (
                       <button key={team.id} className="chip"
                         onClick={() => setSelectedTeam(active ? null : team.id)}
-                        style={{ background: active ? team.color+'28' : '#08111e', border:`2px solid ${active ? team.color : '#1e3a5f'}`, borderRadius:8, padding:'8px 10px', display:'flex', alignItems:'center', gap:8 }}>
+                        style={{
+                          background: active ? team.color+'28' : '#08111e',
+                          border:`2px solid ${active ? team.color : '#1e3a5f'}`,
+                          borderRadius:8, padding:'8px 10px',
+                          display:'flex', alignItems:'center', gap:8,
+                          cursor:'pointer',
+                        }}>
                         <div style={{ width:10, height:10, borderRadius:'50%', background:team.color, flexShrink:0 }} />
-                        <span style={{ fontSize:12, color: active ? '#fff' : '#7ab4d8', fontWeight:700 }}>{team.short}</span>
+                        <span style={{
+                          fontSize:11, color: active ? '#fff' : '#7ab4d8', fontWeight:700,
+                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                          textAlign:'left',
+                        }}>
+                          {team.name}
+                        </span>
                       </button>
                     )
                   })}
