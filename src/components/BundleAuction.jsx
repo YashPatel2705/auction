@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react'
 import { ROLE_COLORS } from '../lib/constants'
 
-// ── Small player chip ────────────────────────────────────────────
 function PlayerChip({ player, onRemove }) {
   return (
     <span style={{
@@ -25,14 +24,28 @@ function PlayerChip({ player, onRemove }) {
   )
 }
 
-// ── Create bundle modal ──────────────────────────────────────────
-function CreateBundleModal({ players, onSave, onClose }) {
-  const available = players.filter(p => p.status === 'available')
-  const [name,       setName]       = useState('')
-  const [search,     setSearch]     = useState('')
-  const [selected,   setSelected]   = useState([])
-  const [busy,       setBusy]       = useState(false)
-  const [err,        setErr]        = useState('')
+function BundleModal({ bundle, players, bundles, onSave, onClose }) {
+  const isEdit = !!bundle
+  const existingPlayers = isEdit ? players.filter(p => bundle.playerIds.includes(p.id)) : []
+
+  const [name,     setName]     = useState(bundle?.name || '')
+  const [search,   setSearch]   = useState('')
+  const [selected, setSelected] = useState(existingPlayers)
+  const [busy,     setBusy]     = useState(false)
+  const [err,      setErr]      = useState('')
+
+  // IDs already taken by OTHER bundles (not this one)
+  const takenIds = new Set(
+    (bundles || [])
+      .filter(b => b.status !== 'sold' && b.id !== bundle?.id)
+      .flatMap(b => b.playerIds)
+  )
+
+  // Available = available players not in other bundles, OR already in this bundle (for edit)
+  const available = players.filter(p =>
+    (p.status === 'available' || bundle?.playerIds.includes(p.id)) &&
+    !takenIds.has(p.id)
+  )
 
   const filtered = useMemo(() =>
     available.filter(p =>
@@ -40,15 +53,19 @@ function CreateBundleModal({ players, onSave, onClose }) {
       p.name.toLowerCase().includes(search.toLowerCase())
     ), [available, selected, search])
 
-  const addPlayer = (p) => setSelected(prev => [...prev, p])
+  const addPlayer    = (p)  => setSelected(prev => [...prev, p])
   const removePlayer = (id) => setSelected(prev => prev.filter(p => p.id !== id))
 
   const save = async () => {
-    if (!name.trim())      return setErr('Bundle name cannot be empty')
+    if (!name.trim())        return setErr('Bundle name cannot be empty')
     if (selected.length < 1) return setErr('Select at least 1 player')
     setBusy(true)
     try {
-      await onSave({ name, playerIds: selected.map(p => p.id) })
+      if (isEdit) {
+        await onSave({ bundleId: bundle.id, name, playerIds: selected.map(p => p.id) })
+      } else {
+        await onSave({ name, playerIds: selected.map(p => p.id) })
+      }
       onClose()
     } catch (e) {
       setErr(e.message)
@@ -63,17 +80,16 @@ function CreateBundleModal({ players, onSave, onClose }) {
       <div className="slide-in" onClick={e => e.stopPropagation()}
         style={{ background:'#0a1e35', border:'1px solid #1e3a5f', borderRadius:16, padding:28, width:520, maxWidth:'96%', maxHeight:'90vh', overflowY:'auto' }}>
 
-        <div className="teko" style={{ fontSize:22, color:'#fff', marginBottom:18, letterSpacing:1 }}>📦 Create Bundle</div>
+        <div className="teko" style={{ fontSize:22, color:'#fff', marginBottom:18, letterSpacing:1 }}>
+          {isEdit ? '✏️ Edit Bundle' : '📦 Create Bundle'}
+        </div>
 
         <label style={{ fontSize:11, color:'#4a7fa8', letterSpacing:1, display:'block', marginBottom:6 }}>BUNDLE NAME</label>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Power Hitters Pack"
           style={{ width:'100%', background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#fff', fontSize:14, marginBottom:16, boxSizing:'border-box' }} />
 
-        {/* Selected players */}
         <div style={{ marginBottom:14 }}>
-          <div style={{ fontSize:11, color:'#4a7fa8', letterSpacing:1, marginBottom:8 }}>
-            SELECTED PLAYERS ({selected.length})
-          </div>
+          <div style={{ fontSize:11, color:'#4a7fa8', letterSpacing:1, marginBottom:8 }}>SELECTED PLAYERS ({selected.length})</div>
           {selected.length === 0 ? (
             <div style={{ fontSize:12, color:'#2a4a6f', fontWeight:600 }}>No players selected yet</div>
           ) : (
@@ -83,7 +99,6 @@ function CreateBundleModal({ players, onSave, onClose }) {
           )}
         </div>
 
-        {/* Search + add players */}
         <div style={{ fontSize:11, color:'#4a7fa8', letterSpacing:1, marginBottom:8 }}>ADD PLAYERS</div>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Search available players…"
           style={{ width:'100%', background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'9px 12px', color:'#fff', fontSize:13, marginBottom:8, boxSizing:'border-box' }} />
@@ -115,7 +130,7 @@ function CreateBundleModal({ players, onSave, onClose }) {
           </button>
           <button onClick={save} disabled={busy}
             style={{ background:'linear-gradient(135deg,#00c864,#007a3d)', border:'none', borderRadius:8, padding:'10px 22px', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
-            {busy ? 'Creating…' : '📦 Create Bundle'}
+            {busy ? 'Saving…' : isEdit ? '✏️ Save Changes' : '📦 Create Bundle'}
           </button>
         </div>
       </div>
@@ -123,7 +138,6 @@ function CreateBundleModal({ players, onSave, onClose }) {
   )
 }
 
-// ── Bundle auction stage ─────────────────────────────────────────
 function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToast }) {
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [bid,          setBid]          = useState('')
@@ -134,7 +148,7 @@ function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToas
 
   const handleSell = async () => {
     const points = Number(bid)
-    if (!selectedTeam)    return showToast('Select a team first', 'error')
+    if (!selectedTeam)      return showToast('Select a team first', 'error')
     if (!bid || points < 1) return showToast('Enter a valid bid amount', 'error')
     if (points > (team?.points ?? 0)) {
       return showToast(`${team?.name} only has ${(team?.points ?? 0).toLocaleString()} points!`, 'error')
@@ -143,6 +157,8 @@ function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToas
     try {
       await onSell({ bundleId: bundle.id, teamId: selectedTeam, points, playerIds: bundle.playerIds })
       showToast(`Bundle "${bundle.name}" sold to ${team?.name} for ${points.toLocaleString()} points!`)
+      // DO NOT call onCancel here — it would reset bundle status back to 'available'
+      // Realtime subscription handles closing the stage by updating status to 'sold'
     } catch (err) {
       showToast(err.message, 'error')
     } finally {
@@ -163,7 +179,6 @@ function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToas
       </div>
 
       <div style={{ padding:20, display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
-        {/* Left — bundle info */}
         <div>
           <div className="teko" style={{ fontSize:24, color:'#fff', marginBottom:4 }}>{bundle.name}</div>
           <div style={{ fontSize:12, color:'#5a8fba', marginBottom:14, fontWeight:600 }}>{bundlePlayers.length} players in this bundle</div>
@@ -180,11 +195,8 @@ function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToas
           </div>
         </div>
 
-        {/* Right — bid */}
         <div>
           <div style={{ fontSize:10, color:'#5a8fba', letterSpacing:1.5, fontWeight:700, marginBottom:10 }}>SELECT TEAM & BID</div>
-
-          {/* Team list with points */}
           <div style={{ display:'flex', flexDirection:'column', gap:5, marginBottom:14, maxHeight:200, overflowY:'auto' }}>
             {teams.map(t => {
               const active = selectedTeam === t.id
@@ -201,18 +213,11 @@ function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToas
             })}
           </div>
 
-          {/* Bid input */}
           <div style={{ marginBottom:14 }}>
             <label style={{ fontSize:11, color:'#4a7fa8', letterSpacing:1, display:'block', marginBottom:6 }}>BID POINTS</label>
-            <input
-              type="number"
-              min={1}
-              max={team?.points ?? 100000}
-              value={bid}
-              onChange={e => setBid(e.target.value)}
-              placeholder="e.g. 5000"
-              style={{ width:'100%', background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#fff', fontSize:16, fontWeight:700, boxSizing:'border-box' }}
-            />
+            <input type="number" min={1} max={team?.points ?? 100000} value={bid}
+              onChange={e => setBid(e.target.value)} placeholder="e.g. 5000"
+              style={{ width:'100%', background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#fff', fontSize:16, fontWeight:700, boxSizing:'border-box' }} />
             {team && (
               <div style={{ fontSize:11, color: Number(bid) > team.points ? '#ef4444' : '#5a8fba', marginTop:5, fontWeight:600 }}>
                 {team.name} has {team.points.toLocaleString()} pts remaining
@@ -231,19 +236,30 @@ function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToas
   )
 }
 
-// ── Main BundleAuction component ─────────────────────────────────
-export default function BundleAuction({ players, teams, bundles, onCreate, onDelete, onActivate, onDeactivate, onSell, showToast }) {
+export default function BundleAuction({ players, teams, bundles, onCreate, onUpdate, onDelete, onActivate, onDeactivate, onSell, onRefund, showToast }) {
   const [showCreate, setShowCreate] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
+  const [refundBusy, setRefundBusy] = useState(null)
 
-  const activeBundle    = bundles.find(b => b.status === 'active')
+  const activeBundle     = bundles.find(b => b.status === 'active')
   const availableBundles = bundles.filter(b => b.status === 'available')
-  const soldBundles     = bundles.filter(b => b.status === 'sold')
+  const soldBundles      = bundles.filter(b => b.status === 'sold')
 
   const handleCreate = async (fields) => {
     try {
       await onCreate(fields)
       showToast(`Bundle "${fields.name}" created ✓`)
       setShowCreate(false)
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
+  }
+
+  const handleUpdate = async (fields) => {
+    try {
+      await onUpdate(fields)
+      showToast(`Bundle "${fields.name}" updated ✓`)
+      setEditTarget(null)
     } catch (err) {
       showToast(err.message, 'error')
     }
@@ -270,33 +286,43 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onDel
 
   const handleDeactivate = async () => {
     if (!activeBundle) return
-    try {
-      await onDeactivate(activeBundle.id)
-    } catch (err) {
-      showToast(err.message, 'error')
-    }
+    try { await onDeactivate(activeBundle.id) }
+    catch (err) { showToast(err.message, 'error') }
   }
 
-  const handleSell = async (fields) => {
-    await onSell(fields)
+  const handleRefund = async (bundle) => {
+    const soldTeam = teams.find(t => t.id === bundle.soldTo)
+    if (!window.confirm(
+      `Refund bundle "${bundle.name}"?\n\n` +
+      `• All ${bundle.playerIds.length} players returned to pool\n` +
+      `• ${bundle.soldPoints?.toLocaleString()} points refunded to ${soldTeam?.name}\n` +
+      `• Bundle reset to available`
+    )) return
+    setRefundBusy(bundle.id)
+    try {
+      await onRefund({ bundleId: bundle.id, teamId: bundle.soldTo, soldPoints: bundle.soldPoints, playerIds: bundle.playerIds })
+      showToast(`Bundle "${bundle.name}" refunded — ${bundle.soldPoints?.toLocaleString()} pts returned to ${soldTeam?.name}`)
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setRefundBusy(null)
+    }
   }
 
   return (
     <div className="fade-up">
 
-      {/* Active bundle auction stage */}
       {activeBundle && (
         <BundleAuctionStage
           bundle={activeBundle}
           players={players}
           teams={teams}
-          onSell={handleSell}
+          onSell={onSell}
           onCancel={handleDeactivate}
           showToast={showToast}
         />
       )}
 
-      {/* Header */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <div>
           <div className="teko" style={{ fontSize:22, letterSpacing:1, color:'#fff' }}>PLAYER BUNDLES</div>
@@ -325,7 +351,6 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onDel
         ))}
       </div>
 
-      {/* Available bundles */}
       {availableBundles.length === 0 && soldBundles.length === 0 ? (
         <div style={{ textAlign:'center', padding:60, color:'#3a6a8f' }}>
           <div style={{ fontSize:48, marginBottom:12 }}>📦</div>
@@ -334,9 +359,10 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onDel
         </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+
           {availableBundles.map(bundle => {
             const bundlePlayers = players.filter(p => bundle.playerIds.includes(p.id))
-            const isActive = bundle.status === 'active'
+            const isActive      = bundle.status === 'active'
             return (
               <div key={bundle.id} style={{ background:'#0a1e35', border:`1px solid ${isActive ? '#00c864' : '#1e3a5f'}`, borderRadius:14, padding:18 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
@@ -356,7 +382,11 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onDel
                         🔨 Send to Auction
                       </button>
                     )}
-                    <button onClick={() => handleDelete(bundle)}
+                    <button onClick={() => setEditTarget(bundle)} title="Edit bundle"
+                      style={{ background:'#1e3a5f', border:'none', borderRadius:8, width:34, height:34, cursor:'pointer', color:'#7ab4d8', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      ✏️
+                    </button>
+                    <button onClick={() => handleDelete(bundle)} title="Delete bundle"
                       style={{ background:'#3a0d0d', border:'none', borderRadius:8, width:34, height:34, cursor:'pointer', color:'#f87171', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
                       🗑️
                     </button>
@@ -366,15 +396,15 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onDel
             )
           })}
 
-          {/* Sold bundles */}
           {soldBundles.length > 0 && (
             <div style={{ marginTop:8 }}>
               <div style={{ fontSize:11, color:'#3a6a8f', letterSpacing:1.5, fontWeight:700, marginBottom:8 }}>SOLD BUNDLES</div>
               {soldBundles.map(bundle => {
                 const bundlePlayers = players.filter(p => bundle.playerIds.includes(p.id))
-                const soldTeam = teams.find(t => t.id === bundle.soldTo)
+                const soldTeam      = teams.find(t => t.id === bundle.soldTo)
+                const isBusy        = refundBusy === bundle.id
                 return (
-                  <div key={bundle.id} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:12, padding:14, marginBottom:8, opacity:0.7 }}>
+                  <div key={bundle.id} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:12, padding:14, marginBottom:8 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:14, color:'#7ab4d8', fontWeight:700, marginBottom:4 }}>📦 {bundle.name}</div>
@@ -382,18 +412,27 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onDel
                           {bundlePlayers.map(p => <PlayerChip key={p.id} player={p} />)}
                         </div>
                       </div>
-                      <div style={{ textAlign:'right' }}>
-                        {soldTeam && (
-                          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                            <div style={{ width:22, height:22, borderRadius:5, background:soldTeam.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, color:soldTeam.accent, fontWeight:800 }}>
-                              {soldTeam.short}
+                      <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+                        <div style={{ textAlign:'right' }}>
+                          {soldTeam && (
+                            <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
+                              <div style={{ width:22, height:22, borderRadius:5, background:soldTeam.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, color:soldTeam.accent, fontWeight:800 }}>
+                                {soldTeam.short}
+                              </div>
+                              <span style={{ fontSize:12, color:'#fff', fontWeight:700 }}>{soldTeam.name}</span>
                             </div>
-                            <span style={{ fontSize:12, color:'#fff', fontWeight:700 }}>{soldTeam.name}</span>
+                          )}
+                          <div className="teko" style={{ fontSize:16, color:'#ffb060' }}>
+                            {bundle.soldPoints?.toLocaleString()} pts
                           </div>
-                        )}
-                        <div className="teko" style={{ fontSize:16, color:'#ffb060' }}>
-                          {bundle.soldPoints?.toLocaleString()} pts
                         </div>
+                        <button onClick={() => handleRefund(bundle)} disabled={isBusy}
+                          title="Refund bundle"
+                          style={{ background: isBusy ? '#1e3a5f' : '#1a3a2a', border:'1px solid #00c86444', borderRadius:8, padding:'7px 14px', color: isBusy ? '#5a8fba' : '#00c864', fontSize:12, fontWeight:700, cursor: isBusy ? 'not-allowed' : 'pointer', whiteSpace:'nowrap' }}
+                          onMouseEnter={e => { if (!isBusy) e.currentTarget.style.background='#1e4a32' }}
+                          onMouseLeave={e => { if (!isBusy) e.currentTarget.style.background='#1a3a2a' }}>
+                          {isBusy ? '⏳ Refunding…' : '↩ Refund'}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -404,12 +443,14 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onDel
         </div>
       )}
 
+      {/* Create modal — passes bundles so it can exclude already-bundled players */}
       {showCreate && (
-        <CreateBundleModal
-          players={players}
-          onSave={handleCreate}
-          onClose={() => setShowCreate(false)}
-        />
+        <BundleModal players={players} bundles={bundles} onSave={handleCreate} onClose={() => setShowCreate(false)} />
+      )}
+
+      {/* Edit modal */}
+      {editTarget && (
+        <BundleModal bundle={editTarget} players={players} bundles={bundles} onSave={handleUpdate} onClose={() => setEditTarget(null)} />
       )}
     </div>
   )

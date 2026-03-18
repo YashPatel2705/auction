@@ -48,11 +48,32 @@ export function usePlayers() {
   }, [])
 
   const sellPlayer = useCallback(async ({ playerId, teamId }) => {
+    // 1. Sell the player
     const { error } = await supabase
       .from('players')
       .update({ status: 'sold', sold_to: teamId })
       .eq('id', playerId)
     if (error) throw new Error(error.message)
+
+    // 2. Remove this player from any available/active bundles they're in
+    const { data: bundles } = await supabase
+      .from('bundles')
+      .select('id, player_ids')
+      .in('status', ['available', 'active'])
+
+    if (bundles?.length) {
+      for (const bundle of bundles) {
+        if (!bundle.player_ids.includes(playerId)) continue
+        const newIds = bundle.player_ids.filter(id => id !== playerId)
+        if (newIds.length === 0) {
+          // Bundle is now empty — delete it
+          await supabase.from('bundles').delete().eq('id', bundle.id)
+        } else {
+          // Remove player from bundle
+          await supabase.from('bundles').update({ player_ids: newIds }).eq('id', bundle.id)
+        }
+      }
+    }
   }, [])
 
   const releasePlayer = useCallback(async (playerId) => {
@@ -102,8 +123,28 @@ export function usePlayers() {
   }, [])
 
   const deletePlayer = useCallback(async (id) => {
+    // Clear C/VC if this player had a role
     await supabase.from('teams').update({ captain_id: null }).eq('captain_id', id)
     await supabase.from('teams').update({ vice_captain_id: null }).eq('vice_captain_id', id)
+
+    // Remove from any bundles
+    const { data: bundles } = await supabase
+      .from('bundles')
+      .select('id, player_ids')
+      .in('status', ['available', 'active'])
+
+    if (bundles?.length) {
+      for (const bundle of bundles) {
+        if (!bundle.player_ids.includes(id)) continue
+        const newIds = bundle.player_ids.filter(pid => pid !== id)
+        if (newIds.length === 0) {
+          await supabase.from('bundles').delete().eq('id', bundle.id)
+        } else {
+          await supabase.from('bundles').update({ player_ids: newIds }).eq('id', bundle.id)
+        }
+      }
+    }
+
     const { error } = await supabase.from('players').delete().eq('id', id)
     if (error) throw new Error(error.message)
   }, [])

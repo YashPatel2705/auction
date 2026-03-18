@@ -101,7 +101,7 @@ export default function AdminPage() {
 
   const { players, loading:pLoad, error:pErr, sellPlayer, releasePlayer, resetAuction, updatePlayer, deletePlayer, addPlayer } = usePlayers()
   const { teams,   loading:tLoad, error:tErr, addTeam, updateTeam, deleteTeam, setCaptain, setViceCaptain } = useTeams()
-  const { bundles, createBundle, deleteBundle, activateBundle, deactivateBundle, sellBundle } = useBundles()
+  const { bundles, createBundle, updateBundle, deleteBundle, activateBundle, deactivateBundle, sellBundle, refundBundle } = useBundles()
   const { toast, showToast } = useToast()
 
   if (authLoading) return (
@@ -190,10 +190,12 @@ export default function AdminPage() {
             teams={teams}
             bundles={bundles}
             onCreate={createBundle}
+            onUpdate={updateBundle}
             onDelete={deleteBundle}
             onActivate={activateBundle}
             onDeactivate={deactivateBundle}
             onSell={sellBundle}
+            onRefund={refundBundle}
             showToast={showToast}
           />
         )}

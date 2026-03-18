@@ -18,7 +18,6 @@ export function useBundles() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
-  // Initial fetch
   useEffect(() => {
     const fetch = async () => {
       setLoading(true)
@@ -33,7 +32,6 @@ export function useBundles() {
     fetch()
   }, [])
 
-  // Realtime
   useEffect(() => {
     const channel = supabase
       .channel('bundles-realtime')
@@ -50,85 +48,81 @@ export function useBundles() {
     return () => supabase.removeChannel(channel)
   }, [])
 
-  // Create a new bundle
   const createBundle = useCallback(async ({ name, playerIds }) => {
-    if (!name?.trim())          throw new Error('Bundle name cannot be empty')
-    if (!playerIds?.length)     throw new Error('Select at least one player')
+    if (!name?.trim())      throw new Error('Bundle name cannot be empty')
+    if (!playerIds?.length) throw new Error('Select at least one player')
     const { error } = await supabase
       .from('bundles')
       .insert({ name: name.trim(), player_ids: playerIds, status: 'available' })
     if (error) throw new Error(error.message)
   }, [])
 
-  // Delete a bundle (only if not sold)
+  // Edit name and/or players of an available bundle
+  const updateBundle = useCallback(async ({ bundleId, name, playerIds }) => {
+    if (!name?.trim())      throw new Error('Bundle name cannot be empty')
+    if (!playerIds?.length) throw new Error('Select at least one player')
+    const { error } = await supabase
+      .from('bundles')
+      .update({ name: name.trim(), player_ids: playerIds })
+      .eq('id', bundleId)
+    if (error) throw new Error(error.message)
+  }, [])
+
   const deleteBundle = useCallback(async (id) => {
-    const { error } = await supabase
-      .from('bundles')
-      .delete()
-      .eq('id', id)
+    const { error } = await supabase.from('bundles').delete().eq('id', id)
     if (error) throw new Error(error.message)
   }, [])
 
-  // Set a bundle as active (on auction block)
   const activateBundle = useCallback(async (id) => {
-    // Only one bundle active at a time — deactivate others first
-    await supabase
-      .from('bundles')
-      .update({ status: 'available' })
-      .eq('status', 'active')
-
-    const { error } = await supabase
-      .from('bundles')
-      .update({ status: 'active' })
-      .eq('id', id)
+    await supabase.from('bundles').update({ status: 'available' }).eq('status', 'active')
+    const { error } = await supabase.from('bundles').update({ status: 'active' }).eq('id', id)
     if (error) throw new Error(error.message)
   }, [])
 
-  // Cancel active bundle back to available
   const deactivateBundle = useCallback(async (id) => {
-    const { error } = await supabase
-      .from('bundles')
-      .update({ status: 'available' })
-      .eq('id', id)
+    const { error } = await supabase.from('bundles').update({ status: 'available' }).eq('id', id)
     if (error) throw new Error(error.message)
   }, [])
 
-  // Sell bundle to a team — deduct points, move all players, mark sold
   const sellBundle = useCallback(async ({ bundleId, teamId, points, playerIds }) => {
-    // 1. Check team has enough points
     const { data: teamData, error: teamErr } = await supabase
-      .from('teams')
-      .select('points, name')
-      .eq('id', teamId)
-      .single()
+      .from('teams').select('points, name').eq('id', teamId).single()
     if (teamErr) throw new Error(teamErr.message)
     if (teamData.points < points) {
       throw new Error(`${teamData.name} only has ${teamData.points.toLocaleString()} points — not enough!`)
     }
-
-    // 2. Deduct points from team
     const { error: pointsErr } = await supabase
-      .from('teams')
-      .update({ points: teamData.points - points })
-      .eq('id', teamId)
+      .from('teams').update({ points: teamData.points - points }).eq('id', teamId)
     if (pointsErr) throw new Error(pointsErr.message)
-
-    // 3. Mark all players as sold to this team
     const { error: playersErr } = await supabase
-      .from('players')
-      .update({ status: 'sold', sold_to: teamId })
-      .in('id', playerIds)
+      .from('players').update({ status: 'sold', sold_to: teamId }).in('id', playerIds)
     if (playersErr) throw new Error(playersErr.message)
+    const { error: bundleErr } = await supabase
+      .from('bundles').update({ status: 'sold', sold_to: teamId, sold_points: points }).eq('id', bundleId)
+    if (bundleErr) throw new Error(bundleErr.message)
+  }, [])
 
-    // 4. Mark bundle as sold
+  const refundBundle = useCallback(async ({ bundleId, teamId, soldPoints, playerIds }) => {
+    const { data: teamData, error: teamErr } = await supabase
+      .from('teams').select('points, name').eq('id', teamId).single()
+    if (teamErr) throw new Error(teamErr.message)
+    const { error: pointsErr } = await supabase
+      .from('teams').update({ points: teamData.points + soldPoints }).eq('id', teamId)
+    if (pointsErr) throw new Error(pointsErr.message)
+    const { error: playersErr } = await supabase
+      .from('players').update({ status: 'available', sold_to: null }).in('id', playerIds)
+    if (playersErr) throw new Error(playersErr.message)
+    for (const pid of playerIds) {
+      await supabase.from('teams').update({ captain_id: null }).eq('captain_id', pid)
+      await supabase.from('teams').update({ vice_captain_id: null }).eq('vice_captain_id', pid)
+    }
     const { error: bundleErr } = await supabase
       .from('bundles')
-      .update({ status: 'sold', sold_to: teamId, sold_points: points })
+      .update({ status: 'available', sold_to: null, sold_points: null })
       .eq('id', bundleId)
     if (bundleErr) throw new Error(bundleErr.message)
   }, [])
 
-  // Reset all bundles back to available (called on auction reset)
   const resetBundles = useCallback(async () => {
     const { error } = await supabase
       .from('bundles')
@@ -141,6 +135,8 @@ export function useBundles() {
 
   return {
     bundles, loading, error, activeBundle,
-    createBundle, deleteBundle, activateBundle, deactivateBundle, sellBundle, resetBundles,
+    createBundle, updateBundle, deleteBundle,
+    activateBundle, deactivateBundle,
+    sellBundle, refundBundle, resetBundles,
   }
 }
