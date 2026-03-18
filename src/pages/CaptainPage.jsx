@@ -140,7 +140,23 @@ export default function CaptainPage() {
       .subscribe()
 
     return () => supabase.removeChannel(ch)
-  }, [activeBundle?.id, activeBundle?.bid_round, team?.id])
+  }, [activeBundle?.id, activeBundle?.bid_round, activeBundle?.status, team?.id])
+
+  const cancelBid = async () => {
+    if (!myBid) return
+    setBidBusy(true); setBidError('')
+    try {
+      const { error } = await supabase.from('bundle_bids').delete().eq('id', myBid.id)
+      if (error) throw new Error(error.message)
+      // Clear state regardless — bid may already be gone if admin cancelled the round
+      setMyBid(null)
+      setBidAmount('')
+    } catch (e) {
+      setBidError(e.message)
+    } finally {
+      setBidBusy(false)
+    }
+  }
 
   const submitBid = async () => {
     const points = Number(bidAmount)
@@ -148,13 +164,24 @@ export default function CaptainPage() {
     if (points > (team?.points ?? 0)) { setBidError(`You only have ${(team?.points ?? 0).toLocaleString()} points`); return }
     setBidBusy(true); setBidError('')
     try {
-      const { error } = await supabase.from('bundle_bids').insert({
-        bundle_id: activeBundle.id,
-        team_id:   team.id,
-        points,
-        round:     activeBundle.bid_round ?? 1,
-      })
+      const round = activeBundle.bid_round ?? 1
+
+      // Delete any existing bid first (handles resubmit cleanly without needing UPDATE policy)
+      await supabase.from('bundle_bids')
+        .delete()
+        .eq('bundle_id', activeBundle.id)
+        .eq('team_id', team.id)
+        .eq('round', round)
+
+      // Fresh insert
+      const { data, error } = await supabase.from('bundle_bids')
+        .insert({ bundle_id: activeBundle.id, team_id: team.id, points, round })
+        .select()
+        .single()
+
       if (error) throw new Error(error.message)
+      if (!data)  throw new Error('Bid was not saved — check your connection and try again')
+      setMyBid(data)
     } catch (e) {
       setBidError(e.message)
     } finally {
@@ -270,6 +297,10 @@ export default function CaptainPage() {
                       <div className="teko" style={{ fontSize:40, color:'#fff' }}>{myBid.points.toLocaleString()}</div>
                       <div style={{ fontSize:11, color:'#5a8fba', fontWeight:600 }}>points — Round {myBid.round}</div>
                       <div style={{ fontSize:12, color:'#4a7fa8', textAlign:'center', fontWeight:600 }}>Waiting for other captains…</div>
+                      <button onClick={cancelBid} disabled={bidBusy}
+                        style={{ background:'none', border:'1px solid #ef444466', borderRadius:8, padding:'6px 16px', color:'#ef4444', fontSize:12, fontWeight:700, cursor: bidBusy ? 'not-allowed' : 'pointer', marginTop:4 }}>
+                        {bidBusy ? 'Cancelling…' : '✕ Cancel & Resubmit'}
+                      </button>
                     </div>
                   ) : (
                     /* Submit form */

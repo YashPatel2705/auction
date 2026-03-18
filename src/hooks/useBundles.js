@@ -90,7 +90,8 @@ export function useBundles() {
   }, [])
 
   const deactivateBundle = useCallback(async (id) => {
-    // Returns active bundle all the way back to available
+    // Clear all bids and return bundle to available
+    await supabase.from('bundle_bids').delete().eq('bundle_id', id)
     const { error } = await supabase
       .from('bundles')
       .update({ status: 'available', bid_round: 1, tiebreaker_teams: null })
@@ -98,10 +99,13 @@ export function useBundles() {
     if (error) throw new Error(error.message)
   }, [])
 
-  // Open sealed captain bidding on an active bundle
+  // Open sealed captain bidding — always wipe stale bids first so every session is clean
   const openBidding = useCallback(async (bundleId) => {
+    await supabase.from('bundle_bids').delete().eq('bundle_id', bundleId)
     const { error } = await supabase
-      .from('bundles').update({ status: 'bidding' }).eq('id', bundleId)
+      .from('bundles')
+      .update({ status: 'bidding', bid_round: 1, tiebreaker_teams: null })
+      .eq('id', bundleId)
     if (error) throw new Error(error.message)
   }, [])
 
@@ -121,10 +125,12 @@ export function useBundles() {
     if (error) throw new Error(error.message)
   }, [])
 
-  // Cancel bidding or review — return bundle to 'active' state
+  // Cancel bidding or review — return bundle to 'active' state and clear all bids
   const revertBundleToActive = useCallback(async (bundleId) => {
+    // Delete all bids so captains get a clean slate when bidding reopens
+    await supabase.from('bundle_bids').delete().eq('bundle_id', bundleId)
     const { error } = await supabase
-      .from('bundles').update({ status: 'active' }).eq('id', bundleId)
+      .from('bundles').update({ status: 'active', bid_round: 1, tiebreaker_teams: null }).eq('id', bundleId)
     if (error) throw new Error(error.message)
   }, [])
 
