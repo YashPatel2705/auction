@@ -4,13 +4,15 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 const mapRow = (row) => ({
-  id:         row.id,
-  name:       row.name,
-  playerIds:  row.player_ids,
-  status:     row.status,
-  soldTo:     row.sold_to,
-  soldPoints: row.sold_points,
-  createdAt:  row.created_at,
+  id:              row.id,
+  name:            row.name,
+  playerIds:       row.player_ids,
+  status:          row.status,
+  soldTo:          row.sold_to,
+  soldPoints:      row.sold_points,
+  bidRound:        row.bid_round        ?? 1,
+  tiebreakerTeams: row.tiebreaker_teams ?? null,
+  createdAt:       row.created_at,
 })
 
 export function useBundles() {
@@ -74,14 +76,55 @@ export function useBundles() {
   }, [])
 
   const activateBundle = useCallback(async (id) => {
-    const { error: deactivErr } = await supabase.from('bundles').update({ status: 'available' }).eq('status', 'active')
+    // Deactivate any bundle currently in active/bidding/reviewing state
+    const { error: deactivErr } = await supabase
+      .from('bundles')
+      .update({ status: 'available', bid_round: 1, tiebreaker_teams: null })
+      .in('status', ['active', 'bidding', 'reviewing'])
     if (deactivErr) throw new Error(deactivErr.message)
-    const { error } = await supabase.from('bundles').update({ status: 'active' }).eq('id', id)
+    const { error } = await supabase
+      .from('bundles')
+      .update({ status: 'active', bid_round: 1, tiebreaker_teams: null })
+      .eq('id', id)
     if (error) throw new Error(error.message)
   }, [])
 
   const deactivateBundle = useCallback(async (id) => {
-    const { error } = await supabase.from('bundles').update({ status: 'available' }).eq('id', id)
+    // Returns active bundle all the way back to available
+    const { error } = await supabase
+      .from('bundles')
+      .update({ status: 'available', bid_round: 1, tiebreaker_teams: null })
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+  }, [])
+
+  // Open sealed captain bidding on an active bundle
+  const openBidding = useCallback(async (bundleId) => {
+    const { error } = await supabase
+      .from('bundles').update({ status: 'bidding' }).eq('id', bundleId)
+    if (error) throw new Error(error.message)
+  }, [])
+
+  // Close bidding — admin reviews bids
+  const closeBidding = useCallback(async (bundleId) => {
+    const { error } = await supabase
+      .from('bundles').update({ status: 'reviewing' }).eq('id', bundleId)
+    if (error) throw new Error(error.message)
+  }, [])
+
+  // Start a tiebreaker round for the given teams
+  const startTiebreaker = useCallback(async (bundleId, tiedTeamIds, currentRound) => {
+    const { error } = await supabase
+      .from('bundles')
+      .update({ status: 'bidding', bid_round: currentRound + 1, tiebreaker_teams: tiedTeamIds })
+      .eq('id', bundleId)
+    if (error) throw new Error(error.message)
+  }, [])
+
+  // Cancel bidding or review — return bundle to 'active' state
+  const revertBundleToActive = useCallback(async (bundleId) => {
+    const { error } = await supabase
+      .from('bundles').update({ status: 'active' }).eq('id', bundleId)
     if (error) throw new Error(error.message)
   }, [])
 
@@ -142,17 +185,18 @@ export function useBundles() {
   const resetBundles = useCallback(async () => {
     const { error } = await supabase
       .from('bundles')
-      .update({ status: 'available', sold_to: null, sold_points: null })
+      .update({ status: 'available', sold_to: null, sold_points: null, bid_round: 1, tiebreaker_teams: null })
       .neq('id', 0)
     if (error) throw new Error(error.message)
   }, [])
 
-  const activeBundle = bundles.find(b => b.status === 'active') || null
+  const activeBundle = bundles.find(b => ['active', 'bidding', 'reviewing'].includes(b.status)) || null
 
   return {
     bundles, loading, error, activeBundle,
     createBundle, updateBundle, deleteBundle,
     activateBundle, deactivateBundle,
+    openBidding, closeBidding, startTiebreaker, revertBundleToActive,
     sellBundle, refundBundle, resetBundles,
   }
 }

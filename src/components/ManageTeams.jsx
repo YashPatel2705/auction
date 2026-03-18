@@ -163,8 +163,13 @@ export default function ManageTeams({ teams, onAdd, onUpdate, onDelete, showToas
   }
 
   const handleUpdate = async (fields) => {
-    await onUpdate(editTarget.id, fields)
-    showToast(`${fields.name} updated ✓`)
+    try {
+      await onUpdate(editTarget.id, fields)
+      showToast(`${fields.name} updated ✓`)
+      setEditTarget(null)
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
   }
 
   const handleDelete = async (id) => {

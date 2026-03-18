@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { ROLE_COLORS } from '../lib/constants'
+import { useBundleBids } from '../hooks/useBundleBids'
 
 function PlayerChip({ player, onRemove }) {
   return (
@@ -138,7 +139,7 @@ function BundleModal({ bundle, players, bundles, onSave, onClose }) {
   )
 }
 
-function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToast }) {
+function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, onOpenBidding, showToast }) {
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [bid,          setBid]          = useState('')
   const [busy,         setBusy]         = useState(false)
@@ -173,9 +174,15 @@ function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToas
           <span style={{ fontSize:16 }}>📦</span>
           <span className="teko" style={{ fontSize:20, letterSpacing:1.5, color:'#00c864' }}>BUNDLE ON AUCTION</span>
         </div>
-        <button onClick={onCancel} style={{ background:'none', border:'1px solid #1e3a5f', borderRadius:6, padding:'4px 12px', color:'#6a9abf', fontSize:12, fontWeight:700, cursor:'pointer' }}>
-          ✕ Cancel
-        </button>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={onOpenBidding}
+            style={{ background:'linear-gradient(135deg,#f59e0b,#d97706)', border:'none', borderRadius:6, padding:'5px 14px', color:'#000', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            🎯 Open Captain Bidding
+          </button>
+          <button onClick={onCancel} style={{ background:'none', border:'1px solid #1e3a5f', borderRadius:6, padding:'4px 12px', color:'#6a9abf', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            ✕ Cancel
+          </button>
+        </div>
       </div>
 
       <div style={{ padding:20, display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
@@ -236,14 +243,234 @@ function BundleAuctionStage({ bundle, players, teams, onSell, onCancel, showToas
   )
 }
 
-export default function BundleAuction({ players, teams, bundles, onCreate, onUpdate, onDelete, onActivate, onDeactivate, onSell, onRefund, showToast }) {
+// ── Admin: shows who has bid (names only, no amounts) while bidding is open ──
+function BiddingStage({ bundle, teams, bids, onCloseBidding, onCancel, showToast }) {
+  const round = bundle.bidRound ?? 1
+  const roundBids = bids.filter(b => b.round === round)
+  const biddedIds = new Set(roundBids.map(b => b.team_id))
+
+  const eligible = (round === 1 || !bundle.tiebreakerTeams)
+    ? teams
+    : teams.filter(t => bundle.tiebreakerTeams.includes(t.id))
+
+  const allIn = eligible.length > 0 && eligible.every(t => biddedIds.has(t.id))
+
+  const handleClose = async () => {
+    try { await onCloseBidding(bundle.id) }
+    catch (err) { showToast(err.message, 'error') }
+  }
+
+  const handleCancel = async () => {
+    try { await onCancel(bundle.id) }
+    catch (err) { showToast(err.message, 'error') }
+  }
+
+  return (
+    <div className="slide-in" style={{ background:'linear-gradient(160deg,#0a1e35,#0c2448)', borderRadius:16, border:'2px solid #f59e0b44', overflow:'hidden', marginBottom:20 }}>
+      <div style={{ padding:'13px 18px', borderBottom:'1px solid #1e3a5f', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ fontSize:16 }}>🎯</span>
+          <span className="teko" style={{ fontSize:20, letterSpacing:1.5, color:'#f59e0b' }}>
+            CAPTAIN BIDDING OPEN{round > 1 ? ` — ROUND ${round} TIEBREAKER` : ''}
+          </span>
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+          {allIn && (
+            <button onClick={handleClose}
+              style={{ background:'linear-gradient(135deg,#00c864,#007a3d)', border:'none', borderRadius:6, padding:'5px 14px', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+              🔒 Close Bidding & Review
+            </button>
+          )}
+          {!allIn && (
+            <button onClick={handleClose}
+              style={{ background:'#1a3a2a', border:'1px solid #00c86444', borderRadius:6, padding:'5px 14px', color:'#00c864', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+              Close Bidding Early
+            </button>
+          )}
+          <button onClick={handleCancel}
+            style={{ background:'none', border:'1px solid #1e3a5f', borderRadius:6, padding:'4px 12px', color:'#6a9abf', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            ✕ Cancel
+          </button>
+        </div>
+      </div>
+
+      <div style={{ padding:18 }}>
+        <div style={{ fontSize:12, color:'#f59e0b', fontWeight:600, marginBottom:14 }}>
+          {bundle.name} — {roundBids.length} of {eligible.length} bids received
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:8 }}>
+          {eligible.map(t => {
+            const hasBid = biddedIds.has(t.id)
+            return (
+              <div key={t.id} style={{ background: hasBid ? '#0a2518' : '#08111e', border:`1px solid ${hasBid ? '#00c86444' : '#1e3a5f'}`, borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ width:28, height:28, borderRadius:6, background:t.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, color:t.accent, fontWeight:800, flexShrink:0 }}>
+                  {t.short}
+                </div>
+                <span style={{ fontSize:13, color: hasBid ? '#00c864' : '#5a8fba', fontWeight:700, flex:1 }}>{t.name}</span>
+                <span style={{ fontSize:14 }}>{hasBid ? '✅' : '⏳'}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Admin: review all bids, pick winner or start tiebreaker ──────────────────
+function BidReviewStage({ bundle, players, teams, bids, onSell, onTiebreaker, onCancel, showToast }) {
+  const [busy, setBusy] = useState(false)
+  const round = bundle.bidRound ?? 1
+  const roundBids = bids.filter(b => b.round === round)
+  const bundlePlayers = players.filter(p => bundle.playerIds.includes(p.id))
+
+  // Build sorted bid list — teams with no bid get 0
+  const eligible = (round === 1 || !bundle.tiebreakerTeams)
+    ? teams
+    : teams.filter(t => bundle.tiebreakerTeams.includes(t.id))
+
+  const bidMap = Object.fromEntries(roundBids.map(b => [b.team_id, b.points]))
+  const sorted = eligible
+    .map(t => ({ team: t, points: bidMap[t.id] ?? null }))
+    .sort((a, b) => (b.points ?? -1) - (a.points ?? -1))
+
+  const topScore = sorted[0]?.points ?? null
+  const winners  = topScore != null ? sorted.filter(x => x.points === topScore) : []
+  const isTie    = winners.length > 1
+  const winner   = !isTie && winners[0] ? winners[0] : null
+
+  const handleConfirmWinner = async () => {
+    if (!winner) return
+    setBusy(true)
+    try {
+      await onSell({ bundleId: bundle.id, teamId: winner.team.id, points: winner.points, playerIds: bundle.playerIds })
+      showToast(`Bundle "${bundle.name}" sold to ${winner.team.name} for ${winner.points.toLocaleString()} pts!`)
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleTiebreaker = async () => {
+    const tiedIds = winners.map(w => w.team.id)
+    setBusy(true)
+    try {
+      await onTiebreaker(bundle.id, tiedIds, round)
+      showToast(`Tiebreaker round ${round + 1} started!`)
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    try { await onCancel(bundle.id) }
+    catch (err) { showToast(err.message, 'error') }
+  }
+
+  return (
+    <div className="slide-in" style={{ background:'linear-gradient(160deg,#0a1e35,#0c2448)', borderRadius:16, border:'2px solid #00c86444', overflow:'hidden', marginBottom:20 }}>
+      <div style={{ padding:'13px 18px', borderBottom:'1px solid #1e3a5f', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ fontSize:16 }}>📋</span>
+          <span className="teko" style={{ fontSize:20, letterSpacing:1.5, color:'#00c864' }}>
+            BID REVIEW — {bundle.name}{round > 1 ? ` (ROUND ${round})` : ''}
+          </span>
+        </div>
+        <button onClick={handleCancel} style={{ background:'none', border:'1px solid #1e3a5f', borderRadius:6, padding:'4px 12px', color:'#6a9abf', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+          ✕ Cancel
+        </button>
+      </div>
+
+      <div style={{ padding:18, display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+        {/* Bundle players */}
+        <div>
+          <div style={{ fontSize:10, color:'#4a7fa8', letterSpacing:1.5, fontWeight:700, marginBottom:10 }}>BUNDLE PLAYERS</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+            {bundlePlayers.map(p => (
+              <div key={p.id} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ background:ROLE_COLORS[p.role]?.bg, color:ROLE_COLORS[p.role]?.text, borderRadius:4, padding:'1px 6px', fontSize:9, fontWeight:800 }}>
+                  {p.role.slice(0,3).toUpperCase()}
+                </span>
+                <span style={{ fontSize:13, color:'#d0e0f0', fontWeight:700 }}>{p.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bids list + action */}
+        <div>
+          <div style={{ fontSize:10, color:'#4a7fa8', letterSpacing:1.5, fontWeight:700, marginBottom:10 }}>ALL BIDS</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:16 }}>
+            {sorted.map(({ team: t, points }, i) => {
+              const isTop  = points === topScore && topScore != null
+              const isTied = isTop && isTie
+              return (
+                <div key={t.id} style={{
+                  background: isTop ? (isTied ? '#1a1500' : '#0a2518') : '#08111e',
+                  border:`1px solid ${isTop ? (isTied ? '#f59e0b44' : '#00c86444') : '#1e3a5f'}`,
+                  borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:10
+                }}>
+                  <span style={{ fontSize:12, color:'#3a6a8f', fontWeight:700, width:18 }}>{i + 1}.</span>
+                  <div style={{ width:26, height:26, borderRadius:6, background:t.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, color:t.accent, fontWeight:800 }}>
+                    {t.short}
+                  </div>
+                  <span style={{ fontSize:13, fontWeight:700, flex:1, color: isTop ? '#fff' : '#7ab4d8' }}>{t.name}</span>
+                  {points != null ? (
+                    <span className="teko" style={{ fontSize:20, color: isTop ? (isTied ? '#f59e0b' : '#00c864') : '#5a8fba' }}>
+                      {points.toLocaleString()}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize:11, color:'#3a5a7f', fontWeight:600 }}>No bid</span>
+                  )}
+                  {isTop && !isTied && <span style={{ fontSize:11, color:'#00c864', fontWeight:700 }}>← WINNER</span>}
+                  {isTied && <span style={{ fontSize:11, color:'#f59e0b', fontWeight:700 }}>TIE</span>}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Decision buttons */}
+          {winner && (
+            <button onClick={handleConfirmWinner} disabled={busy}
+              style={{ width:'100%', background: busy ? '#1e3a5f' : 'linear-gradient(135deg,#00c864,#007a3d)', border:'none', borderRadius:10, padding:14, color:'#fff', fontSize:16, fontFamily:"'Teko',sans-serif", letterSpacing:2, cursor: busy ? 'not-allowed' : 'pointer' }}>
+              {busy ? '⏳ Saving…' : `⚡ CONFIRM — ${winner.team.name} WINS`}
+            </button>
+          )}
+          {isTie && topScore != null && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ fontSize:12, color:'#f59e0b', fontWeight:600, textAlign:'center' }}>
+                {winners.length} teams tied at {topScore.toLocaleString()} pts
+              </div>
+              <button onClick={handleTiebreaker} disabled={busy}
+                style={{ width:'100%', background: busy ? '#1e3a5f' : 'linear-gradient(135deg,#f59e0b,#d97706)', border:'none', borderRadius:10, padding:14, color:'#000', fontSize:16, fontFamily:"'Teko',sans-serif", letterSpacing:2, cursor: busy ? 'not-allowed' : 'pointer' }}>
+                {busy ? '⏳ Starting…' : `🎯 START TIEBREAKER ROUND ${round + 1}`}
+              </button>
+            </div>
+          )}
+          {topScore == null && (
+            <div style={{ textAlign:'center', color:'#3a6a8f', fontSize:13, fontWeight:600, padding:16 }}>
+              No bids were submitted
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function BundleAuction({ players, teams, bundles, onCreate, onUpdate, onDelete, onActivate, onDeactivate, onOpenBidding, onCloseBidding, onStartTiebreaker, onRevertToActive, onSell, onRefund, showToast }) {
   const [showCreate, setShowCreate] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [refundBusy, setRefundBusy] = useState(null)
 
-  const activeBundle     = bundles.find(b => b.status === 'active')
+  const activeBundle     = bundles.find(b => ['active', 'bidding', 'reviewing'].includes(b.status)) || null
   const availableBundles = bundles.filter(b => b.status === 'available')
   const soldBundles      = bundles.filter(b => b.status === 'sold')
+
+  const { bids } = useBundleBids(activeBundle?.id)
 
   const handleCreate = async (fields) => {
     try {
@@ -290,6 +517,16 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onUpd
     catch (err) { showToast(err.message, 'error') }
   }
 
+  const handleOpenBidding = async () => {
+    if (!activeBundle) return
+    try {
+      await onOpenBidding(activeBundle.id)
+      showToast('Captain bidding is now open!')
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
+  }
+
   const handleRefund = async (bundle) => {
     const soldTeam = teams.find(t => t.id === bundle.soldTo)
     const teamLabel = soldTeam?.name ?? 'deleted team'
@@ -319,13 +556,38 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onUpd
   return (
     <div className="fade-up">
 
-      {activeBundle && (
+      {activeBundle?.status === 'active' && (
         <BundleAuctionStage
           bundle={activeBundle}
           players={players}
           teams={teams}
           onSell={onSell}
           onCancel={handleDeactivate}
+          onOpenBidding={handleOpenBidding}
+          showToast={showToast}
+        />
+      )}
+
+      {activeBundle?.status === 'bidding' && (
+        <BiddingStage
+          bundle={activeBundle}
+          teams={teams}
+          bids={bids}
+          onCloseBidding={onCloseBidding}
+          onCancel={onRevertToActive}
+          showToast={showToast}
+        />
+      )}
+
+      {activeBundle?.status === 'reviewing' && (
+        <BidReviewStage
+          bundle={activeBundle}
+          players={players}
+          teams={teams}
+          bids={bids}
+          onSell={onSell}
+          onTiebreaker={onStartTiebreaker}
+          onCancel={onRevertToActive}
           showToast={showToast}
         />
       )}

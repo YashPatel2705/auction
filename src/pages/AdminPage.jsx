@@ -101,7 +101,7 @@ export default function AdminPage() {
 
   const { players, loading:pLoad, error:pErr, sellPlayer, releasePlayer, resetAuction, updatePlayer, deletePlayer, addPlayer } = usePlayers()
   const { teams,   loading:tLoad, error:tErr, addTeam, updateTeam, deleteTeam, setCaptain, setViceCaptain } = useTeams()
-  const { bundles, createBundle, updateBundle, deleteBundle, activateBundle, deactivateBundle, sellBundle, refundBundle } = useBundles()
+  const { bundles, createBundle, updateBundle, deleteBundle, activateBundle, deactivateBundle, openBidding, closeBidding, startTiebreaker, revertBundleToActive, sellBundle, refundBundle } = useBundles()
   const { toast, showToast } = useToast()
 
   if (authLoading) return (
@@ -141,7 +141,7 @@ export default function AdminPage() {
   )
 
   const available      = players.filter(p => p.status === 'available').length
-  const activeBundles  = bundles.filter(b => b.status === 'active').length
+  const activeBundles  = bundles.filter(b => ['active', 'bidding', 'reviewing'].includes(b.status)).length
 
   const TABS = [
     { id:'spin',           icon:'🎯', label:'Spin Wheel'    },
@@ -194,6 +194,10 @@ export default function AdminPage() {
             onDelete={deleteBundle}
             onActivate={activateBundle}
             onDeactivate={deactivateBundle}
+            onOpenBidding={openBidding}
+            onCloseBidding={closeBidding}
+            onStartTiebreaker={startTiebreaker}
+            onRevertToActive={revertBundleToActive}
             onSell={sellBundle}
             onRefund={refundBundle}
             showToast={showToast}

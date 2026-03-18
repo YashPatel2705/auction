@@ -95,6 +95,12 @@ export function useTeams() {
       .eq('sold_to', id)
     if (bundlesErr) throw new Error(bundlesErr.message)
 
+    // Delete any bids this team submitted
+    await supabase.from('bundle_bids').delete().eq('team_id', id)
+
+    // Remove captain_teams mapping for this team
+    await supabase.from('captain_teams').delete().eq('team_id', id)
+
     const { error } = await supabase.from('teams').delete().eq('id', id)
     if (error) throw new Error(error.message)
   }, [])

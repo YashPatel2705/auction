@@ -112,9 +112,16 @@ export function usePlayers() {
     // Reset all bundles
     const { error: bundlesErr } = await supabase
       .from('bundles')
-      .update({ status: 'available', sold_to: null, sold_points: null })
+      .update({ status: 'available', sold_to: null, sold_points: null, bid_round: 1, tiebreaker_teams: null })
       .neq('id', 0)
     if (bundlesErr) throw new Error(bundlesErr.message)
+
+    // Delete all bundle bids
+    const { error: bidsErr } = await supabase
+      .from('bundle_bids')
+      .delete()
+      .neq('id', 0)
+    if (bidsErr) throw new Error(bidsErr.message)
   }, [])
 
   const updatePlayer = useCallback(async (id, fields) => {
