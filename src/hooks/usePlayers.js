@@ -89,29 +89,32 @@ export function usePlayers() {
 
   const resetAuction = useCallback(async () => {
     // Reset all players
-    const { error } = await supabase
+    const { error: playersErr } = await supabase
       .from('players')
       .update({ status: 'available', sold_to: null })
       .neq('id', 0)
-    if (error) throw new Error(error.message)
+    if (playersErr) throw new Error(playersErr.message)
 
     // Clear all C/VC
-    await supabase
+    const { error: cvcErr } = await supabase
       .from('teams')
       .update({ captain_id: null, vice_captain_id: null })
       .neq('id', '')
+    if (cvcErr) throw new Error(cvcErr.message)
 
     // Reset all team points to 100,000
-    await supabase
+    const { error: pointsErr } = await supabase
       .from('teams')
       .update({ points: 100000 })
       .neq('id', '')
+    if (pointsErr) throw new Error(pointsErr.message)
 
     // Reset all bundles
-    await supabase
+    const { error: bundlesErr } = await supabase
       .from('bundles')
       .update({ status: 'available', sold_to: null, sold_points: null })
       .neq('id', 0)
+    if (bundlesErr) throw new Error(bundlesErr.message)
   }, [])
 
   const updatePlayer = useCallback(async (id, fields) => {
@@ -150,12 +153,15 @@ export function usePlayers() {
   }, [])
 
   const addPlayer = useCallback(async ({ name, role, rating }) => {
-    const maxId = players.reduce((m, p) => Math.max(m, p.id), 0)
+    // Fetch max ID from DB to avoid race condition when two admins add simultaneously
+    const { data: top } = await supabase
+      .from('players').select('id').order('id', { ascending: false }).limit(1).maybeSingle()
+    const nextId = (top?.id ?? 0) + 1
     const { error } = await supabase
       .from('players')
-      .insert({ id: maxId + 1, name: name.trim(), role, rating: Number(rating), status: 'available' })
+      .insert({ id: nextId, name: name.trim(), role, rating: Number(rating), status: 'available' })
     if (error) throw new Error(error.message)
-  }, [players])
+  }, [])
 
   return {
     players, loading, error,

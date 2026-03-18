@@ -17,7 +17,7 @@ export default function AuctionStage({ players, teams=[], onSell, showToast, jum
       setSelectedTeam(null)
       onJumpConsumed?.()
     }
-  }, [jumpToPlayer])
+  }, [jumpToPlayer, onJumpConsumed])
 
   const available = useMemo(() => players.filter(p => p.status === 'available'), [players])
   const filtered  = useMemo(() =>

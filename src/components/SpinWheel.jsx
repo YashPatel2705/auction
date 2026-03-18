@@ -206,13 +206,6 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
             </button>
           )}
 
-          {/* All done — just show reset */}
-          {allDone && teams.length > 0 && !winner && (
-            <button onClick={spin} disabled style={{ background:'#1e3a5f', border:'none', borderRadius:12, padding:'14px 48px', color:'#fff', fontSize:18, fontFamily:"'Teko',sans-serif", letterSpacing:2, cursor:'not-allowed', opacity:0.6 }}>
-              ✅ ALL DONE
-            </button>
-          )}
-
           {spinOrder.length > 0 && !winner && (
             <button onClick={() => setShowConfirm(true)}
               style={{ background:'#3a0d0d', border:'1px solid #7f1d1d', borderRadius:10, padding:'8px 24px', color:'#f87171', fontSize:13, fontWeight:700, cursor:'pointer' }}

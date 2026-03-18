@@ -1,6 +1,6 @@
 // src/components/TeamsView.jsx
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ROLE_COLORS } from '../lib/constants'
 import ConfirmModal from './ConfirmModal'
 
@@ -23,7 +23,12 @@ export default function TeamsView({ players, teams=[], onRelease, setCaptain, se
   const [confirmDrop, setConfirmDrop] = useState(null)
   const [busy,        setBusy]        = useState(false)
 
-  const teamRoster = (tid) => players.filter(p => p.soldTo === tid)
+  // Sync selection if teams weren't loaded yet on mount
+  useEffect(() => {
+    if (!activeTeam && teams.length > 0) setActiveTeam(teams[0].id)
+  }, [teams, activeTeam])
+
+  const teamRoster = (tid) => players.filter(p => p.status === 'sold' && p.soldTo === tid)
   const team   = teams.find(t => t.id === activeTeam) || teams[0]
   const roster = team ? teamRoster(team.id) : []
 

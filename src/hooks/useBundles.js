@@ -74,7 +74,8 @@ export function useBundles() {
   }, [])
 
   const activateBundle = useCallback(async (id) => {
-    await supabase.from('bundles').update({ status: 'available' }).eq('status', 'active')
+    const { error: deactivErr } = await supabase.from('bundles').update({ status: 'available' }).eq('status', 'active')
+    if (deactivErr) throw new Error(deactivErr.message)
     const { error } = await supabase.from('bundles').update({ status: 'active' }).eq('id', id)
     if (error) throw new Error(error.message)
   }, [])
@@ -91,24 +92,39 @@ export function useBundles() {
     if (teamData.points < points) {
       throw new Error(`${teamData.name} only has ${teamData.points.toLocaleString()} points — not enough!`)
     }
+
+    // 1. Deduct points
     const { error: pointsErr } = await supabase
       .from('teams').update({ points: teamData.points - points }).eq('id', teamId)
     if (pointsErr) throw new Error(pointsErr.message)
+
+    // 2. Mark players sold — rollback points if this fails
     const { error: playersErr } = await supabase
       .from('players').update({ status: 'sold', sold_to: teamId }).in('id', playerIds)
-    if (playersErr) throw new Error(playersErr.message)
+    if (playersErr) {
+      await supabase.from('teams').update({ points: teamData.points }).eq('id', teamId)
+      throw new Error(playersErr.message)
+    }
+
+    // 3. Mark bundle sold — rollback points + players if this fails
     const { error: bundleErr } = await supabase
       .from('bundles').update({ status: 'sold', sold_to: teamId, sold_points: points }).eq('id', bundleId)
-    if (bundleErr) throw new Error(bundleErr.message)
+    if (bundleErr) {
+      await supabase.from('teams').update({ points: teamData.points }).eq('id', teamId)
+      await supabase.from('players').update({ status: 'available', sold_to: null }).in('id', playerIds)
+      throw new Error(bundleErr.message)
+    }
   }, [])
 
   const refundBundle = useCallback(async ({ bundleId, teamId, soldPoints, playerIds }) => {
-    const { data: teamData, error: teamErr } = await supabase
-      .from('teams').select('points, name').eq('id', teamId).single()
-    if (teamErr) throw new Error(teamErr.message)
-    const { error: pointsErr } = await supabase
-      .from('teams').update({ points: teamData.points + soldPoints }).eq('id', teamId)
-    if (pointsErr) throw new Error(pointsErr.message)
+    // Team may have been deleted — only refund points if the team still exists
+    const { data: teamData } = await supabase
+      .from('teams').select('points').eq('id', teamId).maybeSingle()
+    if (teamData) {
+      const { error: pointsErr } = await supabase
+        .from('teams').update({ points: teamData.points + soldPoints }).eq('id', teamId)
+      if (pointsErr) throw new Error(pointsErr.message)
+    }
     const { error: playersErr } = await supabase
       .from('players').update({ status: 'available', sold_to: null }).in('id', playerIds)
     if (playersErr) throw new Error(playersErr.message)

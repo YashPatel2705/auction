@@ -51,18 +51,21 @@ export function useTeams() {
   }, [])
 
   const addTeam = useCallback(async ({ id, name, short, color, accent }) => {
-    const maxOrder = teams.reduce((m, t) => Math.max(m, t.sortOrder), 0)
+    // Fetch max sort_order from DB to avoid race condition
+    const { data: top } = await supabase
+      .from('teams').select('sort_order').order('sort_order', { ascending: false }).limit(1).maybeSingle()
+    const nextOrder = (top?.sort_order ?? 0) + 1
     const { error } = await supabase.from('teams').insert({
       id: id.toUpperCase().trim(),
       name: name.trim(),
       short: short.toUpperCase().trim(),
       color,
       accent,
-      sort_order: maxOrder + 1,
+      sort_order: nextOrder,
       points: 100000,
     })
     if (error) throw new Error(error.message)
-  }, [teams])
+  }, [])
 
   const updateTeam = useCallback(async (id, fields) => {
     const { error } = await supabase
@@ -78,6 +81,20 @@ export function useTeams() {
   }, [])
 
   const deleteTeam = useCallback(async (id) => {
+    // Release all players sold to this team
+    const { error: playersErr } = await supabase
+      .from('players')
+      .update({ status: 'available', sold_to: null })
+      .eq('sold_to', id)
+    if (playersErr) throw new Error(playersErr.message)
+
+    // Reset any bundles sold to this team (no point refund — team is gone)
+    const { error: bundlesErr } = await supabase
+      .from('bundles')
+      .update({ status: 'available', sold_to: null, sold_points: null })
+      .eq('sold_to', id)
+    if (bundlesErr) throw new Error(bundlesErr.message)
+
     const { error } = await supabase.from('teams').delete().eq('id', id)
     if (error) throw new Error(error.message)
   }, [])

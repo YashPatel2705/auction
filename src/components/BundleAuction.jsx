@@ -292,16 +292,23 @@ export default function BundleAuction({ players, teams, bundles, onCreate, onUpd
 
   const handleRefund = async (bundle) => {
     const soldTeam = teams.find(t => t.id === bundle.soldTo)
+    const teamLabel = soldTeam?.name ?? 'deleted team'
+    const pointsLine = soldTeam
+      ? `• ${bundle.soldPoints?.toLocaleString()} points refunded to ${teamLabel}`
+      : `• Team no longer exists — points cannot be refunded`
     if (!window.confirm(
       `Refund bundle "${bundle.name}"?\n\n` +
       `• All ${bundle.playerIds.length} players returned to pool\n` +
-      `• ${bundle.soldPoints?.toLocaleString()} points refunded to ${soldTeam?.name}\n` +
+      `${pointsLine}\n` +
       `• Bundle reset to available`
     )) return
     setRefundBusy(bundle.id)
     try {
       await onRefund({ bundleId: bundle.id, teamId: bundle.soldTo, soldPoints: bundle.soldPoints, playerIds: bundle.playerIds })
-      showToast(`Bundle "${bundle.name}" refunded — ${bundle.soldPoints?.toLocaleString()} pts returned to ${soldTeam?.name}`)
+      const msg = soldTeam
+        ? `Bundle "${bundle.name}" refunded — ${bundle.soldPoints?.toLocaleString()} pts returned to ${teamLabel}`
+        : `Bundle "${bundle.name}" cleared — players returned to pool`
+      showToast(msg)
     } catch (err) {
       showToast(err.message, 'error')
     } finally {

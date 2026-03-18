@@ -66,10 +66,18 @@ function EditPlayerModal({ player, onSave, onClose }) {
 
 function DeleteConfirm({ player, onConfirm, onClose }) {
   const [busy, setBusy] = useState(false)
+  const [err,  setErr]  = useState('')
   const go = async () => {
     setBusy(true)
-    await onConfirm(player.id)
-    onClose()
+    setErr('')
+    try {
+      await onConfirm(player.id)
+      onClose()
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
   }
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}
@@ -81,6 +89,7 @@ function DeleteConfirm({ player, onConfirm, onClose }) {
         <div style={{ color: '#7ab4d8', fontSize: 14, marginBottom: 22 }}>
           <strong style={{ color: '#fff' }}>{player.name}</strong> will be permanently removed from the auction.
         </div>
+        {err && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>⚠ {err}</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <button onClick={onClose}
             style={{ background: '#1e3a5f', border: 'none', borderRadius: 8, padding: '10px 22px', color: '#7ab4d8', fontSize: 14, cursor: 'pointer' }}>

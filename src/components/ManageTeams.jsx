@@ -112,7 +112,19 @@ function TeamModal({ team, onSave, onClose }) {
 
 function DeleteTeamConfirm({ team, onConfirm, onClose }) {
   const [busy, setBusy] = useState(false)
-  const go = async () => { setBusy(true); await onConfirm(team.id); onClose() }
+  const [err,  setErr]  = useState('')
+  const go = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      await onConfirm(team.id)
+      onClose()
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}
       onClick={onClose}>
@@ -122,8 +134,9 @@ function DeleteTeamConfirm({ team, onConfirm, onClose }) {
         <div className="teko" style={{ fontSize: 22, color: '#fff', marginBottom: 8 }}>Delete Team?</div>
         <div style={{ color: '#7ab4d8', fontSize: 14, marginBottom: 22, lineHeight: 1.6 }}>
           <strong style={{ color: '#fff' }}>{team.name}</strong> will be permanently deleted.
-          Any players assigned to this team will show as unassigned.
+          All players assigned to this team will be returned to the player pool.
         </div>
+        {err && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>⚠ {err}</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <button onClick={onClose}
             style={{ background: '#1e3a5f', border: 'none', borderRadius: 8, padding: '10px 22px', color: '#7ab4d8', fontSize: 14, cursor: 'pointer' }}>
