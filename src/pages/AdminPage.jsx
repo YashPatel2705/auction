@@ -60,7 +60,7 @@ function Header({ players, user, onReset, onSignOut }) {
         <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
           <div style={{ width:36, height:36, background:'linear-gradient(135deg,#00c864,#007a3d)', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>🏏</div>
           <div>
-            <div className="teko" style={{ fontSize:20, letterSpacing:2, color:'#fff', lineHeight:1 }}>CRICKET AUCTION</div>
+            <div className="teko" style={{ fontSize:20, letterSpacing:2, color:'#fff', lineHeight:1 }}>HARI PRABODHAM BOX CRICKET AUCTION</div>
             <div style={{ fontSize:10, color:'#3a6a8f', letterSpacing:2, textTransform:'uppercase', fontWeight:700 }}>Admin Panel</div>
           </div>
         </div>

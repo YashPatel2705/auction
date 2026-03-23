@@ -17,7 +17,9 @@ function useWindowWidth() {
 export default function SpinWheel({ teams = [], onTeamSelected }) {
   const canvasRef       = useRef(null)
   const [spinning,    setSpinning]    = useState(false)
-  const [spinOrder,   setSpinOrder]   = useState([])
+  const [spinOrder,   setSpinOrder]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem('spinOrder') ?? '[]') } catch { return [] }
+  })
   const [winner,      setWinner]      = useState(null)
   const [showConfirm, setShowConfirm] = useState(false)
   const animRef         = useRef(null)
@@ -125,6 +127,10 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
     drawWheel(currentRotRef.current)
   }, [remaining.length, teams.length, canvasSize, drawWheel])
 
+  useEffect(() => {
+    localStorage.setItem('spinOrder', JSON.stringify(spinOrder))
+  }, [spinOrder])
+
   useEffect(() => () => {
     if (animRef.current) cancelAnimationFrame(animRef.current)
   }, [])
@@ -148,6 +154,7 @@ export default function SpinWheel({ teams = [], onTeamSelected }) {
     setWinner(null)
     setShowConfirm(false)
     currentRotRef.current = 0
+    localStorage.removeItem('spinOrder')
     setTimeout(() => drawWheel(0), 50)
   }
 

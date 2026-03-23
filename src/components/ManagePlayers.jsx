@@ -225,7 +225,7 @@ export default function ManagePlayers({ players, onUpdate, onDelete, onAdd, show
               onMouseEnter={e => e.currentTarget.style.background = '#0d2040'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div style={{ fontSize: 12, color: '#3a6a8f' }}>{player.id}</div>
+              <div style={{ fontSize: 12, color: '#3a6a8f' }}>{idx + 1}</div>
               <div style={{ fontSize: 14, color: '#e8edf5', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>{player.name}</div>
               <div>
                 <span className="badge" style={{ background: ROLE_COLORS[player.role]?.bg, color: ROLE_COLORS[player.role]?.text, fontSize: 9 }}>
