@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { YdsPaymentSdk } from "yds-payment-sdk";
-import { supabase } from "../lib/supabase";
+import { reportClientError } from "../lib/errorLogger";
 import { parsePaymentCardForm } from "../lib/formSubmit";
+import { supabase } from "../lib/supabase";
 import "./pay-registration.css";
 
 export default function PayPage() {
@@ -83,27 +84,32 @@ export default function PayPage() {
           email: registration.email,
           phoneNumber: registration.mobile,
         },
-      })
-        .then(async () => {
-          const { error: updateError } = await supabase
-            .from("registrations")
-            .update({ status: "paid" })
-            .eq("unique_id", registrationUuid);
+      });
 
-          if (updateError) throw new Error(updateError.message);
-        })
-        .catch((err) => {
-          setError(err.message || "Payment failed");
-        })
-        .finally(() => {
-          setBusy(false);
-        });
+      const { error: updateError } = await supabase
+        .from("registrations")
+        .update({ status: "paid" })
+        .eq("unique_id", registrationUuid);
+      if (updateError) throw new Error(updateError.message);
 
       setSuccess(
         "Payment successful! Your spot is confirmed, we'll see you on the ground with infectious enthusiasm!",
       );
       setRegistration((prev) => ({ ...prev, status: "paid" }));
     } catch (err) {
+      reportClientError(err, {
+        kind: "payment_submit_error",
+        email: registration?.email,
+        meta: {
+          component: "PayPage",
+          action: "submit",
+          page: "pay",
+          section: "submit",
+          status: "failed",
+          flow: "pay_now",
+          sdk: "yds-payment-sdk",
+        },
+      });
       setError(err.message || "Payment failed");
     } finally {
       setBusy(false);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { YdsPaymentSdk } from "yds-payment-sdk";
+import { reportClientError } from "../lib/errorLogger";
 import {
   parseRegistrationForm,
   toRegistrationInsertPayload,
@@ -184,6 +185,19 @@ export default function RegistrationPage() {
       if (uniqueId) {
         await supabase.from("registrations").delete().eq("unique_id", uniqueId);
       }
+      reportClientError(err, {
+        kind: "registration_submit_error",
+        email: reg?.email,
+        meta: {
+          component: "RegistrationPage",
+          action: "submit",
+          page: "registration",
+          section: "submit",
+          status: "failed",
+          flow: paymentChoice === "pay_now" ? "pay_now" : "pay_later",
+          sdk: "yds-payment-sdk",
+        },
+      });
       const errorMessage = err?.message || "Failed to submit registration";
       setError(mapSupabaseErrorToUiMessage(errorMessage));
     } finally {
