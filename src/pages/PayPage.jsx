@@ -24,6 +24,14 @@ export default function PayPage() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
+    const prev = document.title;
+    document.title = "Pay || HPBCT 2026";
+    return () => {
+      document.title = prev;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!registrationUuid) {
       navigate("/registration", { replace: true });
       return;

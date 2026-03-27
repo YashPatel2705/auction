@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import {
@@ -34,6 +34,14 @@ export default function RegistrationPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [payLaterLink, setPayLaterLink] = useState("");
+
+  useEffect(() => {
+    const prev = document.title;
+    document.title = "Registration || HPBCT 2026";
+    return () => {
+      document.title = prev;
+    };
+  }, []);
 
   const onChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
