@@ -112,7 +112,12 @@ export default function PayPage() {
 
   if (loading) {
     return (
-      <div className="pr-page-outer pr-page-outer--loading">Loading...</div>
+      <div className="pr-page-outer pr-page-outer--loading">
+        <div className="pr-loading-overlay" aria-live="polite">
+          <div className="pr-spinner" aria-hidden="true" />
+          <span className="pr-loading-text">Loading...</span>
+        </div>
+      </div>
     );
   }
 
@@ -120,6 +125,12 @@ export default function PayPage() {
 
   return (
     <div className="pr-page-outer">
+      {busy && (
+        <div className="pr-loading-overlay" aria-live="polite">
+          <div className="pr-spinner" aria-hidden="true" />
+          <span className="pr-loading-text">Processing payment...</span>
+        </div>
+      )}
       <div className="pr-card pr-card--pay">
         <h1 className="teko pr-title">
           {alreadyPaid ? "Payment confirmed" : "Pay now"}

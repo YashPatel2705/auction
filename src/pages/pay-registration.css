@@ -2,7 +2,8 @@
 
 .pr-page-outer {
   min-height: 100vh;
-  min-height: 100dvh;
+  height: 100dvh;
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -18,6 +19,41 @@
 .pr-page-outer--loading {
   align-items: center;
   justify-content: center;
+}
+
+.pr-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(251, 249, 250, 0.8);
+  backdrop-filter: blur(2px);
+  pointer-events: all;
+}
+
+.pr-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #c5663c;
+  border-radius: 50%;
+  animation: pr-spin 0.9s linear infinite;
+}
+
+.pr-loading-text {
+  color: #1e2939;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+@keyframes pr-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (min-width: 641px) {

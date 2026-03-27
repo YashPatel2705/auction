@@ -193,6 +193,12 @@ export default function RegistrationPage() {
 
   return (
     <div className="pr-page-outer">
+      {busy && (
+        <div className="pr-loading-overlay" aria-live="polite">
+          <div className="pr-spinner" aria-hidden="true" />
+          <span className="pr-loading-text">Submitting...</span>
+        </div>
+      )}
       <div className="pr-card pr-card--reg">
         <h1 className="teko pr-title">Registration</h1>
 
