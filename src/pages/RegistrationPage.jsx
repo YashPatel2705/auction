@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { YdsPaymentSdk } from "yds-payment-sdk";
 import {
   parseRegistrationForm,
   toRegistrationInsertPayload,
   toYdsRegistrationSubmissionData,
 } from "../lib/formSubmit";
-import { YdsPaymentSdk } from "yds-payment-sdk";
+import { supabase } from "../lib/supabase";
 import "./pay-registration.css";
 
 const initialForm = {
@@ -24,6 +24,61 @@ const initialForm = {
 
 function sanitizeFileName(name) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
+function mapSupabaseErrorToUiMessage(message) {
+  const text = (message || "").toLowerCase();
+
+  if (
+    text.includes("object exceeded allowed size limit") ||
+    text.includes("object exceeded the maximum allowed size")
+  ) {
+    return "Image too big in size. Max 2MB.";
+  }
+
+  if (text.includes("mime type") && text.includes("not allowed")) {
+    return "Invalid image format. Use JPG, PNG, or WebP.";
+  }
+
+  if (text.includes("bucket not found")) {
+    return "Image upload service issue. Try again later.";
+  }
+
+  if (
+    text.includes("row-level security") ||
+    text.includes("permission denied") ||
+    text.includes("not authorized")
+  ) {
+    return "You do not have permission to submit right now.";
+  }
+
+  if (
+    text.includes("duplicate key value violates unique constraint") ||
+    text.includes("23505")
+  ) {
+    return "Registration already exists for this email.";
+  }
+
+  if (
+    text.includes("invalid input syntax") ||
+    text.includes("value too long")
+  ) {
+    return "Some form values are invalid. Please review and retry.";
+  }
+
+  if (
+    text.includes("failed to fetch") ||
+    text.includes("network request failed") ||
+    text.includes("timeout")
+  ) {
+    return "Network issue. Check connection and retry.";
+  }
+
+  if (text.includes("jwt expired") || text.includes("invalid jwt")) {
+    return "Session expired. Refresh and try again.";
+  }
+
+  return "Something went wrong. Please try again.";
 }
 
 export default function RegistrationPage() {
@@ -125,7 +180,8 @@ export default function RegistrationPage() {
       if (uniqueId) {
         await supabase.from("registrations").delete().eq("unique_id", uniqueId);
       }
-      setError(err.message || "Failed to submit registration");
+      const errorMessage = err?.message || "Failed to submit registration";
+      setError(mapSupabaseErrorToUiMessage(errorMessage));
     } finally {
       setBusy(false);
     }
