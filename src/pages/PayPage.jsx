@@ -4,7 +4,7 @@ import { YdsPaymentSdk } from "yds-payment-sdk";
 import { reportClientError } from "../lib/errorLogger";
 import { parsePaymentCardForm } from "../lib/formSubmit";
 import { supabase } from "../lib/supabase";
-import "./pay-registration.css";
+import "../styles/pay-registration.css";
 
 export default function PayPage() {
   const [searchParams] = useSearchParams();

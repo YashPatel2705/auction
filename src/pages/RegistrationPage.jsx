@@ -8,7 +8,7 @@ import {
   toYdsRegistrationSubmissionData,
 } from "../lib/formSubmit";
 import { supabase } from "../lib/supabase";
-import "./pay-registration.css";
+import "../styles/pay-registration.css";
 
 const initialForm = {
   fullName: "",
