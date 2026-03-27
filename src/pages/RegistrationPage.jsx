@@ -427,14 +427,14 @@ export default function RegistrationPage() {
             </div>
 
             <div className="pr-form-actions">
-              <button
+              {/* <button
                 type="button"
                 onClick={() => submit("pay_later")}
                 disabled={busy}
                 className="pr-outline-btn"
               >
                 {busy ? "Submitting..." : "Pay Later"}
-              </button>
+              </button> */}
               <button
                 type="button"
                 onClick={() => submit("pay_now")}
