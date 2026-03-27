@@ -147,12 +147,16 @@ export default function RegistrationPage() {
         return;
       }
 
-      if (!photoFile) {
-        setError("Photo is required");
-        return;
+      let photoUrl = null;
+      if (photoFile) {
+        try {
+          const uploadResult = await uploadPhoto();
+          photoUrl = uploadResult.publicUrl;
+        } catch {
+          // Ignore upload failure; proceed with registration without photo URL.
+          photoUrl = null;
+        }
       }
-
-      const { publicUrl: photoUrl } = await uploadPhoto();
 
       const payload = toRegistrationInsertPayload(reg, photoUrl);
 
