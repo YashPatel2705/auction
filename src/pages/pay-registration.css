@@ -327,6 +327,14 @@
     flex-direction: column;
   }
 
+  .pr-pay-now-btn {
+    order: 1;
+  }
+
+  .pr-pay-later-btn {
+    order: 2;
+  }
+
   .pr-form-actions button {
     min-width: 0;
     width: 100%;

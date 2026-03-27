@@ -431,7 +431,7 @@ export default function RegistrationPage() {
                 type="button"
                 onClick={() => submit("pay_later")}
                 disabled={busy}
-                className="pr-outline-btn"
+                className="pr-outline-btn pr-pay-later-btn"
               >
                 {busy ? "Submitting..." : "Pay Later"}
               </button> */}
@@ -439,7 +439,7 @@ export default function RegistrationPage() {
                 type="button"
                 onClick={() => submit("pay_now")}
                 disabled={busy}
-                className="pr-primary-btn"
+                className="pr-primary-btn pr-pay-now-btn"
               >
                 {busy ? "Submitting..." : "Pay Now"}
               </button>
