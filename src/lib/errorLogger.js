@@ -15,6 +15,9 @@ const ALLOWED_META_KEYS = new Set([
   "sdk",
   "sdkStep",
   "errorCode",
+  "registrationId",
+  "supabaseOp",
+  "httpStatus",
 ]);
 
 const SENSITIVE_KEY_PARTS = [

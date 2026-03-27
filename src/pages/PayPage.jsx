@@ -34,6 +34,20 @@ export default function PayPage() {
 
   useEffect(() => {
     if (!registrationUuid) {
+      reportClientError("Missing registrationId query param", {
+        kind: "payment_submit_error",
+        meta: {
+          component: "PayPage",
+          action: "load_registration",
+          page: "pay",
+          section: "bootstrap",
+          status: "failed",
+          flow: "pay_link_open",
+          sdk: "router",
+          sdkStep: "read_registration_id",
+          errorCode: "PAY_REG_ID_MISSING",
+        },
+      });
       navigate("/registration", { replace: true });
       return;
     }
@@ -45,7 +59,44 @@ export default function PayPage() {
         .eq("unique_id", registrationUuid)
         .single();
 
-      if (fetchError || !data) {
+      if (fetchError) {
+        reportClientError(fetchError, {
+          kind: "payment_submit_error",
+          meta: {
+            component: "PayPage",
+            action: "load_registration",
+            page: "pay",
+            section: "bootstrap",
+            status: "failed",
+            flow: "pay_link_open",
+            sdk: "supabase",
+            sdkStep: "fetch_registration",
+            errorCode: "PAY_FETCH_FAILED",
+            registrationId: registrationUuid,
+            supabaseOp: "select_registration",
+          },
+        });
+        navigate("/registration", { replace: true });
+        return;
+      }
+
+      if (!data) {
+        reportClientError("Registration not found", {
+          kind: "payment_submit_error",
+          meta: {
+            component: "PayPage",
+            action: "load_registration",
+            page: "pay",
+            section: "bootstrap",
+            status: "failed",
+            flow: "pay_link_open",
+            sdk: "supabase",
+            sdkStep: "fetch_registration",
+            errorCode: "PAY_REG_NOT_FOUND",
+            registrationId: registrationUuid,
+            supabaseOp: "select_registration",
+          },
+        });
         navigate("/registration", { replace: true });
         return;
       }
@@ -71,6 +122,7 @@ export default function PayPage() {
     setBusy(true);
     setError("");
     setSuccess("");
+    let submitStep = "submit_yds_payment";
 
     try {
       await YdsPaymentSdk.submit(import.meta.env.VITE_YDS_PAYMENT_SDK_URL, {
@@ -86,6 +138,7 @@ export default function PayPage() {
         },
       });
 
+      submitStep = "update_paid_status";
       const { error: updateError } = await supabase
         .from("registrations")
         .update({ status: "paid" })
@@ -107,7 +160,18 @@ export default function PayPage() {
           section: "submit",
           status: "failed",
           flow: "pay_now",
-          sdk: "yds-payment-sdk",
+          sdk:
+            submitStep === "update_paid_status"
+              ? "supabase"
+              : "yds-payment-sdk",
+          sdkStep: submitStep,
+          errorCode:
+            submitStep === "update_paid_status"
+              ? "PAY_STATUS_UPDATE_FAILED"
+              : "PAY_YDS_SUBMIT_FAILED",
+          registrationId: registrationUuid,
+          supabaseOp:
+            submitStep === "update_paid_status" ? "update_paid_status" : "none",
         },
       });
       setError(err.message || "Payment failed");

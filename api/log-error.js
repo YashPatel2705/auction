@@ -46,6 +46,9 @@ const ALLOWED_META_KEYS = new Set([
   "sdk",
   "sdkStep",
   "errorCode",
+  "registrationId",
+  "supabaseOp",
+  "httpStatus",
 ]);
 
 function trimString(value, max = MAX_STRING_LENGTH) {

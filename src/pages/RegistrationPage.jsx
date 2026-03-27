@@ -132,6 +132,7 @@ export default function RegistrationPage() {
     setPayLaterLink("");
 
     let uniqueId = null;
+    let submitStep = "check_existing";
 
     try {
       const { data: existingRows, error: existingError } = await supabase
@@ -150,16 +151,35 @@ export default function RegistrationPage() {
 
       let photoUrl = null;
       if (photoFile) {
+        submitStep = "upload_photo";
         try {
           const uploadResult = await uploadPhoto();
           photoUrl = uploadResult.publicUrl;
-        } catch {
+        } catch (uploadErr) {
+          reportClientError(uploadErr, {
+            kind: "registration_submit_error",
+            email: reg?.email,
+            meta: {
+              component: "RegistrationPage",
+              action: "submit",
+              page: "registration",
+              section: "submit",
+              status: "failed",
+              flow: paymentChoice === "pay_now" ? "pay_now" : "pay_later",
+              sdk: "supabase",
+              sdkStep: "upload_photo",
+              errorCode: "REG_PHOTO_UPLOAD_FAILED",
+              registrationId: uniqueId,
+              supabaseOp: "upload_player_photo",
+            },
+          });
           // Ignore upload failure; proceed with registration without photo URL.
           photoUrl = null;
         }
       }
 
       const payload = toRegistrationInsertPayload(reg, photoUrl);
+      submitStep = "insert_registration";
 
       const { data, error: insertError } = await supabase
         .from("registrations")
@@ -174,6 +194,7 @@ export default function RegistrationPage() {
       }
 
       const paymentLink = `${window.location.origin}/pay?registrationId=${data.unique_id}`;
+      submitStep = "submit_yds";
       await YdsPaymentSdk.submit(import.meta.env.VITE_YDS_PAYMENT_SDK_URL, {
         formId: import.meta.env.VITE_YDS_PAYMENT_SDK_FORM_ID,
         submissionData: toYdsRegistrationSubmissionData(reg, paymentLink),
@@ -183,8 +204,40 @@ export default function RegistrationPage() {
       setSuccess("pay_later_success");
     } catch (err) {
       if (uniqueId) {
-        await supabase.from("registrations").delete().eq("unique_id", uniqueId);
+        try {
+          submitStep = "rollback_insert";
+          const { error: rollbackError } = await supabase
+            .from("registrations")
+            .delete()
+            .eq("unique_id", uniqueId);
+          if (rollbackError) throw new Error(rollbackError.message);
+        } catch (rollbackErr) {
+          reportClientError(rollbackErr, {
+            kind: "registration_submit_error",
+            email: reg?.email,
+            meta: {
+              component: "RegistrationPage",
+              action: "submit",
+              page: "registration",
+              section: "submit",
+              status: "failed",
+              flow: paymentChoice === "pay_now" ? "pay_now" : "pay_later",
+              sdk: "supabase",
+              sdkStep: "rollback_insert",
+              errorCode: "REG_ROLLBACK_FAILED",
+              registrationId: uniqueId,
+              supabaseOp: "delete_registration",
+            },
+          });
+        }
       }
+      const registrationErrorCodeByStep = {
+        check_existing: "REG_CHECK_EXISTING_FAILED",
+        upload_photo: "REG_PHOTO_UPLOAD_FAILED",
+        insert_registration: "REG_INSERT_FAILED",
+        submit_yds: "REG_YDS_SUBMIT_FAILED",
+        rollback_insert: "REG_ROLLBACK_FAILED",
+      };
       reportClientError(err, {
         kind: "registration_submit_error",
         email: reg?.email,
@@ -195,7 +248,19 @@ export default function RegistrationPage() {
           section: "submit",
           status: "failed",
           flow: paymentChoice === "pay_now" ? "pay_now" : "pay_later",
-          sdk: "yds-payment-sdk",
+          sdk: submitStep === "submit_yds" ? "yds-payment-sdk" : "supabase",
+          sdkStep: submitStep,
+          errorCode:
+            registrationErrorCodeByStep[submitStep] || "REG_SUBMIT_UNKNOWN",
+          registrationId: uniqueId,
+          supabaseOp:
+            submitStep === "check_existing"
+              ? "select_registration"
+              : submitStep === "insert_registration"
+                ? "insert_registration"
+                : submitStep === "rollback_insert"
+                  ? "delete_registration"
+                  : "none",
         },
       });
       const errorMessage = err?.message || "Failed to submit registration";
