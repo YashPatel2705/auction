@@ -75,7 +75,7 @@ export default function PayPage() {
       await YdsPaymentSdk.submit(import.meta.env.VITE_YDS_PAYMENT_SDK_URL, {
         formId: import.meta.env.VITE_YDS_PAYMENT_SDK_FORM_ID,
         paymentInfo: {
-          amount: 1,
+          amount: 30,
           card,
         },
         submissionData: {
