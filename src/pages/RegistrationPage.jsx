@@ -89,7 +89,6 @@ export default function RegistrationPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [payLaterLink, setPayLaterLink] = useState("");
 
   useEffect(() => {
     const prev = document.title;
@@ -129,7 +128,6 @@ export default function RegistrationPage() {
     setBusy(true);
     setError("");
     setSuccess("");
-    setPayLaterLink("");
 
     let uniqueId = null;
     let submitStep = "check_existing";
@@ -137,15 +135,20 @@ export default function RegistrationPage() {
     try {
       const { data: existingRows, error: existingError } = await supabase
         .from("registrations")
-        .select("unique_id")
+        .select("unique_id,status")
         .eq("email", reg.email)
         .limit(1);
 
       if (existingError) throw new Error(existingError.message);
 
       const existingId = existingRows?.[0]?.unique_id;
+      const existingStatus = (existingRows?.[0]?.status || "").toLowerCase();
       if (existingId) {
-        navigate(`/pay?registrationId=${existingId}`);
+        if (existingStatus === "paid") {
+          navigate(`/pay?registrationId=${existingId}`);
+          return;
+        }
+        setSuccess("pay_later_success");
         return;
       }
 
@@ -193,14 +196,12 @@ export default function RegistrationPage() {
         return;
       }
 
-      const paymentLink = `${window.location.origin}/pay?registrationId=${data.unique_id}`;
       submitStep = "submit_yds";
       await YdsPaymentSdk.submit(import.meta.env.VITE_YDS_PAYMENT_SDK_URL, {
         formId: import.meta.env.VITE_YDS_PAYMENT_SDK_FORM_ID,
-        submissionData: toYdsRegistrationSubmissionData(reg, paymentLink),
+        submissionData: toYdsRegistrationSubmissionData(reg),
       });
 
-      setPayLaterLink(paymentLink);
       setSuccess("pay_later_success");
     } catch (err) {
       if (uniqueId) {
@@ -510,18 +511,18 @@ export default function RegistrationPage() {
                 type="button"
                 onClick={() => submit("pay_later")}
                 disabled={busy}
-                className="pr-outline-btn pr-pay-later-btn"
+                className="pr-primary-btn pr-pay-later-btn"
               >
-                {busy ? "Submitting..." : "Pay Later"}
+                {busy ? "Submitting..." : "Register"}
               </button>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => submit("pay_now")}
                 disabled={busy}
                 className="pr-primary-btn pr-pay-now-btn"
               >
                 {busy ? "Submitting..." : "Pay Now"}
-              </button>
+              </button> */}
             </div>
           </>
         ) : (
@@ -533,10 +534,10 @@ export default function RegistrationPage() {
               yet, it will only be confirmed after you have paid your fees.{" "}
               <span className="pr-reg-success-highlight">
                 You&apos;ll receive a payment link on your email to pay your
-                fees.
+                fees in upcoming days.
               </span>
             </p>
-            <div className="pr-submit-wrap">
+            {/* <div className="pr-submit-wrap">
               <button
                 type="button"
                 className="pr-primary-btn full"
@@ -544,7 +545,7 @@ export default function RegistrationPage() {
               >
                 Pay now to book your spot
               </button>
-            </div>
+            </div> */}
           </div>
         )}
 

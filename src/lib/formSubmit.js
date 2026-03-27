@@ -37,11 +37,22 @@ export function parseRegistrationForm(form) {
     return { ok: false, error: "India T-shirt size is required" };
   if (!ROLES.has(role)) return { ok: false, error: "Role is required" };
   if (participatedRaw !== "yes" && participatedRaw !== "no")
-    return { ok: false, error: "Please answer the 2025 participation question" };
+    return {
+      ok: false,
+      error: "Please answer the 2025 participation question",
+    };
 
-  if (!Number.isFinite(battingRating) || battingRating < 1 || battingRating > 10)
+  if (
+    !Number.isFinite(battingRating) ||
+    battingRating < 1 ||
+    battingRating > 10
+  )
     return { ok: false, error: "Batting rating must be between 1 and 10" };
-  if (!Number.isFinite(bowlingRating) || bowlingRating < 1 || bowlingRating > 10)
+  if (
+    !Number.isFinite(bowlingRating) ||
+    bowlingRating < 1 ||
+    bowlingRating > 10
+  )
     return { ok: false, error: "Bowling rating must be between 1 and 10" };
 
   battingRating = Math.round(battingRating);
@@ -89,14 +100,12 @@ export function toRegistrationInsertPayload(data, photoUrl) {
 
 /**
  * @param {RegistrationNormalized} data
- * @param {string} paymentLink
  */
-export function toYdsRegistrationSubmissionData(data, paymentLink) {
+export function toYdsRegistrationSubmissionData(data) {
   return {
     fullName: data.fullName,
     email: data.email,
     phoneNumber: data.mobile,
-    metaData: { paymentLink },
   };
 }
 
@@ -122,7 +131,10 @@ export function parsePaymentCardForm(form) {
         error: "Amex card number must be 15 digits and start with 34 or 37",
       };
   } else if (!/^\d{16}$/.test(number)) {
-    return { ok: false, error: "Card number must be 16 digits (Amex: 15 digits)" };
+    return {
+      ok: false,
+      error: "Card number must be 16 digits (Amex: 15 digits)",
+    };
   }
 
   if (!/^\d{2}$/.test(expiryMonthRaw))
@@ -137,7 +149,10 @@ export function parsePaymentCardForm(form) {
     if (!/^\d{4}$/.test(cvd))
       return { ok: false, error: "Amex security code must be 4 digits" };
   } else if (!/^\d{3}$/.test(cvd)) {
-    return { ok: false, error: "Security code must be 3 digits (Amex: 4 digits)" };
+    return {
+      ok: false,
+      error: "Security code must be 3 digits (Amex: 4 digits)",
+    };
   }
 
   const expiryMonth = expiryMonthRaw.padStart(2, "0").slice(0, 2);
