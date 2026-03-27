@@ -1,0 +1,319 @@
+/* Shared stylesheet for `PayPage.jsx` and `RegistrationPage.jsx`. */
+
+.pr-page-outer {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: #fbf9fa;
+  color: #1e2939;
+  font-size: 16px;
+  line-height: 1.4;
+  overflow-x: hidden;
+}
+
+.pr-page-outer--loading {
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 641px) {
+  .pr-page-outer:has(.pr-card--pay) {
+    align-items: center;
+  }
+}
+
+.pr-card {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: clamp(16px, 4vw, 20px);
+}
+
+.pr-card--pay {
+  max-width: 640px;
+}
+
+.pr-card--reg {
+  max-width: 760px;
+}
+
+.pr-title {
+  font-size: clamp(1.75rem, 5vw + 1rem, 2.5rem);
+  line-height: 1.05;
+  color: #c5663c;
+  letter-spacing: clamp(0.5px, 0.2vw, 1.5px);
+}
+
+.pr-info-box {
+  margin-top: 10px;
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.pr-box-title {
+  /* Tournament subtitle: make it visually distinct */
+  color: #c5663c;
+  font-family: 'Teko', sans-serif;
+  font-size: clamp(1.125rem, 2.5vw + 0.5rem, 1.375rem);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.15;
+  margin-bottom: 10px;
+  padding-left: 0;
+  border-left: none;
+  overflow-wrap: anywhere;
+}
+
+.pr-details {
+  margin-top: 8px;
+  font-size: clamp(0.9375rem, 0.5vw + 0.875rem, 1rem);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.pr-detail-label {
+  color: #c5663c;
+  font-weight: 700;
+}
+
+.pr-contact-block {
+  margin-top: 8px;
+  color: #1e2939;
+}
+
+.pr-contact-heading {
+  font-weight: 700;
+  color: #c5663c;
+}
+
+.pr-link {
+  color: #c5663c;
+  text-decoration: none;
+}
+
+.pr-section-left {
+  margin-top: 12px;
+  border-left: 4px solid #fb2c36;
+  padding-left: 12px;
+}
+
+.pr-strict-title {
+  color: #fb2c36;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.pr-strict-list {
+  margin-top: 6px;
+  padding-left: 18px;
+  color: #1e2939;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.pr-field-label {
+  color: #1e2939;
+  font-size: 16px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.pr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pr-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #1e2939;
+  font-size: 16px;
+}
+
+/* Avoid iOS zoom on focus: keep inputs at least 16px (already 16px). */
+.pr-input[type="file"] {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.pr-value {
+  color: #1e2939;
+  font-size: 16px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.pr-span-2 {
+  grid-column: span 2;
+}
+
+.pr-row-2-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: clamp(10px, 2.5vw, 12px);
+  background: #fbf9fa;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.pr-row-2-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pr-page-outer .reg-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pr-help-text {
+  font-size: 14px;
+  color: #1e2939;
+  margin-top: 6px;
+}
+
+.pr-error {
+  margin-top: 14px;
+  color: #fb2c36;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.pr-success {
+  margin-top: 14px;
+  color: #c5663c;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.pr-pay-confirmed {
+  margin-top: 14px;
+  color: #c5663c;
+  font-size: 16px;
+  text-align: center;
+  padding: clamp(14px, 4vw, 20px);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fbf9fa;
+  overflow-wrap: anywhere;
+}
+
+.pr-reg-success-message {
+  color: #1e2939;
+}
+
+.pr-reg-success-highlight {
+  color: #c5663c;
+  font-weight: 700;
+}
+
+.pr-submit-wrap {
+  margin-top: 18px;
+}
+
+.pr-primary-btn {
+  border: none;
+  background: #c5663c;
+  color: #fff;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.pr-primary-btn:disabled {
+  cursor: not-allowed;
+}
+
+.pr-primary-btn.full {
+  width: 100%;
+}
+
+.pr-outline-btn {
+  border: 1px solid #c5663c;
+  background: #ffffff;
+  color: #c5663c;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.pr-outline-btn:disabled {
+  cursor: not-allowed;
+}
+
+.pr-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.pr-form-actions button {
+  flex: 1;
+  min-width: min(100%, 140px);
+}
+
+@media (max-width: 640px) {
+  .pr-row-2-summary,
+  .pr-row-2-form,
+  .pr-page-outer .reg-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pr-span-2 {
+    grid-column: span 1;
+  }
+
+  .pr-form-actions {
+    flex-direction: column;
+  }
+
+  .pr-form-actions button {
+    min-width: 0;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .pr-primary-btn,
+  .pr-outline-btn {
+    min-height: 44px;
+  }
+
+  .pr-info-box {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .pr-page-outer {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .pr-card {
+    border-radius: 12px;
+  }
+}

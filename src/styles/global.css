@@ -90,6 +90,23 @@ input, select, button, textarea {
   animation: pulse 1.5s infinite;
 }
 
+.reg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reg-field input,
+.reg-field select {
+  background: #08111e;
+  border: 1px solid #1e3a5f;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 /* ══════════════════════════════════════════
    MOBILE — everything ≤ 768px
 ══════════════════════════════════════════ */
@@ -182,6 +199,12 @@ input, select, button, textarea {
   .mob-modal {
     width: 96% !important;
     padding: 20px !important;
+  }
+
+  .reg-form-grid,
+  .pay-row-2,
+  .pay-row-3 {
+    grid-template-columns: 1fr !important;
   }
 }
 
