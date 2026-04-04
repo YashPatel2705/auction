@@ -9,7 +9,7 @@ import "../styles/pay-registration.css";
 export default function PayPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const registrationUuid = searchParams.get("registrationId");
+  const registrationUuid = searchParams.get("rid");
 
   const [registration, setRegistration] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export default function PayPage() {
 
   useEffect(() => {
     if (!registrationUuid) {
-      reportClientError("Missing registrationId query param", {
+      reportClientError("Missing rid query param", {
         kind: "payment_submit_error",
         meta: {
           component: "PayPage",
@@ -44,8 +44,8 @@ export default function PayPage() {
           status: "failed",
           flow: "pay_link_open",
           sdk: "router",
-          sdkStep: "read_registration_id",
-          errorCode: "PAY_REG_ID_MISSING",
+          sdkStep: "read_rid",
+          errorCode: "PAY_RID_MISSING",
         },
       });
       navigate("/registration", { replace: true });
@@ -72,7 +72,7 @@ export default function PayPage() {
             sdk: "supabase",
             sdkStep: "fetch_registration",
             errorCode: "PAY_FETCH_FAILED",
-            registrationId: registrationUuid,
+            rid: registrationUuid,
             supabaseOp: "select_registration",
           },
         });
@@ -93,7 +93,7 @@ export default function PayPage() {
             sdk: "supabase",
             sdkStep: "fetch_registration",
             errorCode: "PAY_REG_NOT_FOUND",
-            registrationId: registrationUuid,
+            rid: registrationUuid,
             supabaseOp: "select_registration",
           },
         });
@@ -169,7 +169,7 @@ export default function PayPage() {
             submitStep === "update_paid_status"
               ? "PAY_STATUS_UPDATE_FAILED"
               : "PAY_YDS_SUBMIT_FAILED",
-          registrationId: registrationUuid,
+          rid: registrationUuid,
           supabaseOp:
             submitStep === "update_paid_status" ? "update_paid_status" : "none",
         },

@@ -56,6 +56,7 @@ cricket-auction/
 ### 3. Enable Realtime
 
 In Supabase Dashboard:
+
 - Go to **Database → Replication**
 - Toggle ON the `players` table
 
@@ -68,6 +69,7 @@ cp .env.example .env
 ```
 
 Edit `.env`:
+
 ```env
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
@@ -85,9 +87,9 @@ npm run dev
 
 ## URLs
 
-| URL | Description |
-|-----|-------------|
-| `http://localhost:5173/` | **Viewer screen** — share this link with audience |
+| URL                           | Description                                              |
+| ----------------------------- | -------------------------------------------------------- |
+| `http://localhost:5173/`      | **Viewer screen** — share this link with audience        |
 | `http://localhost:5173/admin` | **Admin panel** — password-protected, for the auctioneer |
 
 ---
@@ -115,6 +117,7 @@ UI updates live — no page refresh needed
 ## Deployment (Production)
 
 ### Frontend (Vercel — free)
+
 ```bash
 npm run build
 # Deploy the `dist/` folder to Vercel / Netlify / any static host
@@ -122,7 +125,9 @@ npm run build
 ```
 
 ### Environment Variables on Vercel
+
 Add these in Vercel → Project Settings → Environment Variables:
+
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_ADMIN_PASSWORD`
@@ -141,7 +146,16 @@ Add these in Vercel → Project Settings → Environment Variables:
 ## Adding More Players
 
 Run in Supabase SQL Editor:
+
 ```sql
 INSERT INTO public.players (id, name, role, base_price, rating)
 VALUES (101, 'New Player', 'Batter', 100, 82);
+```
+
+## Generating Payment Links
+
+Generate payment links csv with email and payment link columns from the registrations_rows.csv file present in the root directory of the project.
+
+```bash
+npm run generate:payment:links
 ```

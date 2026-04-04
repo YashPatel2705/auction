@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:payment:links": "node scripts/generate-payment-links-csv.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.4",

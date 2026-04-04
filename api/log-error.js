@@ -46,7 +46,7 @@ const ALLOWED_META_KEYS = new Set([
   "sdk",
   "sdkStep",
   "errorCode",
-  "registrationId",
+  "rid",
   "supabaseOp",
   "httpStatus",
 ]);
