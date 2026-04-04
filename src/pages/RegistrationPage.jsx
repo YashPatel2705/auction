@@ -57,7 +57,7 @@ function mapSupabaseErrorToUiMessage(message) {
     text.includes("duplicate key value violates unique constraint") ||
     text.includes("23505")
   ) {
-    return "Registration already exists for this email.";
+    return "Registration already exists for this email or mobile number.";
   }
 
   if (
@@ -133,19 +133,31 @@ export default function RegistrationPage() {
     let submitStep = "check_existing";
 
     try {
-      const { data: existingRows, error: existingError } = await supabase
-        .from("registrations")
-        .select("unique_id,status")
-        .eq("email", reg.email)
-        .limit(1);
+      const [
+        { data: existingByEmail, error: emailLookupError },
+        { data: existingByMobile, error: mobileLookupError },
+      ] = await Promise.all([
+        supabase
+          .from("registrations")
+          .select("unique_id,status")
+          .eq("email", reg.email)
+          .limit(1),
+        supabase
+          .from("registrations")
+          .select("unique_id,status")
+          .eq("mobile", reg.mobile)
+          .limit(1),
+      ]);
 
-      if (existingError) throw new Error(existingError.message);
+      if (emailLookupError) throw new Error(emailLookupError.message);
+      if (mobileLookupError) throw new Error(mobileLookupError.message);
 
-      const existingId = existingRows?.[0]?.unique_id;
-      const existingStatus = (existingRows?.[0]?.status || "").toLowerCase();
+      const existingRow = existingByEmail?.[0] ?? existingByMobile?.[0];
+      const existingId = existingRow?.unique_id;
+      const existingStatus = (existingRow?.status || "").toLowerCase();
       if (existingId) {
         if (existingStatus === "paid") {
-          navigate(`/pay?registrationId=${existingId}`);
+          navigate(`/pay?rid=${existingId}`);
           return;
         }
         setSuccess("pay_later_success");
@@ -172,7 +184,7 @@ export default function RegistrationPage() {
               sdk: "supabase",
               sdkStep: "upload_photo",
               errorCode: "REG_PHOTO_UPLOAD_FAILED",
-              registrationId: uniqueId,
+              rid: uniqueId,
               supabaseOp: "upload_player_photo",
             },
           });
@@ -192,7 +204,7 @@ export default function RegistrationPage() {
       if (insertError) throw new Error(insertError.message);
       uniqueId = data.unique_id;
       if (paymentChoice === "pay_now") {
-        navigate(`/pay?registrationId=${data.unique_id}`);
+        navigate(`/pay?rid=${data.unique_id}`);
         return;
       }
 
@@ -226,7 +238,7 @@ export default function RegistrationPage() {
               sdk: "supabase",
               sdkStep: "rollback_insert",
               errorCode: "REG_ROLLBACK_FAILED",
-              registrationId: uniqueId,
+              rid: uniqueId,
               supabaseOp: "delete_registration",
             },
           });
@@ -253,7 +265,7 @@ export default function RegistrationPage() {
           sdkStep: submitStep,
           errorCode:
             registrationErrorCodeByStep[submitStep] || "REG_SUBMIT_UNKNOWN",
-          registrationId: uniqueId,
+          rid: uniqueId,
           supabaseOp:
             submitStep === "check_existing"
               ? "select_registration"
