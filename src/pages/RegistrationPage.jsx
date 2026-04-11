@@ -10,6 +10,8 @@ import {
 import { supabase } from "../lib/supabase";
 import "../styles/pay-registration.css";
 
+const MAX_REGISTRATIONS = 160;
+
 const initialForm = {
   fullName: "",
   mobileNumber: "",
@@ -214,7 +216,34 @@ export default function RegistrationPage() {
         submissionData: toYdsRegistrationSubmissionData(reg),
       });
 
-      setSuccess("pay_later_success");
+      const { count: activeRegCount, error: activeCountError } = await supabase
+        .from("registrations")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["pending", "paid"]);
+
+      if (activeCountError) {
+        reportClientError(new Error(activeCountError.message), {
+          kind: "registration_submit_error",
+          email: reg?.email,
+          meta: {
+            component: "RegistrationPage",
+            action: "submit",
+            page: "registration",
+            section: "active_count",
+            status: "failed",
+            flow: "pay_later",
+            sdk: "supabase",
+            sdkStep: "count_active_registrations",
+            errorCode: "REG_ACTIVE_COUNT_FAILED",
+            supabaseOp: "count_registrations",
+          },
+        });
+      }
+
+      const overCapacity =
+        typeof activeRegCount === "number" &&
+        activeRegCount > MAX_REGISTRATIONS;
+      setSuccess(overCapacity ? "pay_later_waiting_list" : "pay_later_success");
     } catch (err) {
       if (uniqueId) {
         try {
@@ -339,7 +368,8 @@ export default function RegistrationPage() {
           </div>
         </div>
 
-        {success !== "pay_later_success" ? (
+        {success !== "pay_later_success" &&
+        success !== "pay_later_waiting_list" ? (
           <>
             <div className="reg-form-grid">
               <label className="pr-field">
@@ -541,12 +571,25 @@ export default function RegistrationPage() {
           <div className="pr-pay-confirmed" aria-live="polite">
             <h2 className="teko pr-title">Registration successful</h2>
             <p className="pr-reg-success-message">
-              Your registration was successful, but your spot is{" "}
-              <span className="pr-reg-success-highlight">NOT CONFIRMED</span>{" "}
-              yet, it will only be confirmed after you have paid your fees.{" "}
+              {success === "pay_later_waiting_list" ? (
+                <>
+                  Your registration was successful, you&apos;ve been put on a
+                  waiting list.{" "}
+                </>
+              ) : (
+                <>
+                  Your registration was successful, but your spot is{" "}
+                  <span className="pr-reg-success-highlight">
+                    NOT CONFIRMED
+                  </span>{" "}
+                  yet, it will only be confirmed after you have paid your
+                  fees.{" "}
+                </>
+              )}
               <span className="pr-reg-success-highlight">
-                You&apos;ll receive a payment link on your email to pay your
-                fees in upcoming days.
+                {success === "pay_later_waiting_list"
+                  ? "If you're selected to play, you'll receive a payment link on your email to pay your fees in upcoming days."
+                  : "If you're selected, you'll receive a payment link on your email to pay your fees in upcoming days."}
               </span>
             </p>
             {/* <div className="pr-submit-wrap">
@@ -566,11 +609,13 @@ export default function RegistrationPage() {
             ❌ {error}
           </output>
         )}
-        {success && success !== "pay_later_success" && (
-          <output className="pr-success" aria-live="polite">
-            ✅ {success}
-          </output>
-        )}
+        {success &&
+          success !== "pay_later_success" &&
+          success !== "pay_later_waiting_list" && (
+            <output className="pr-success" aria-live="polite">
+              ✅ {success}
+            </output>
+          )}
       </div>
     </div>
   );
