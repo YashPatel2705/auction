@@ -518,15 +518,14 @@ export default function RegistrationPage() {
               </label>
 
               <label className="pr-field">
-                <span className="pr-field-label">
-                  Reference Name (Optional)
-                </span>
+                <span className="pr-field-label">Reference Name</span>
                 <input
                   className="pr-input"
                   name="referenceName"
                   placeholder="Friend/Team Captain"
                   value={form.referenceName}
                   onChange={(e) => onChange("referenceName", e.target.value)}
+                  required
                   autoComplete="off"
                 />
               </label>

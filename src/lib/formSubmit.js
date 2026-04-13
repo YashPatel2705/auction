@@ -1,4 +1,4 @@
-/** @typedef {{ fullName: string; mobile: string; email: string; dob: string; tshirtSize: string; role: string; participatedIn2025: boolean; referenceName: string | null; battingRating: number; bowlingRating: number; isKeeper: boolean }} RegistrationNormalized */
+/** @typedef {{ fullName: string; mobile: string; email: string; dob: string; tshirtSize: string; role: string; participatedIn2025: boolean; referenceName: string; battingRating: number; bowlingRating: number; isKeeper: boolean }} RegistrationNormalized */
 
 const ROLES = new Set(["batsman", "bowler", "all-rounder", "wicket-keeper"]);
 const TSHIRT_SIZES = new Set(["S", "M", "L", "XL", "XXL", "XXXL"]);
@@ -41,6 +41,7 @@ export function parseRegistrationForm(form) {
       ok: false,
       error: "Please answer the 2025 participation question",
     };
+  if (!refRaw) return { ok: false, error: "Reference name is required" };
 
   if (
     !Number.isFinite(battingRating) ||
@@ -68,7 +69,7 @@ export function parseRegistrationForm(form) {
       tshirtSize,
       role,
       participatedIn2025: participatedRaw === "yes",
-      referenceName: refRaw || null,
+      referenceName: refRaw,
       battingRating,
       bowlingRating,
       isKeeper: role === "wicket-keeper",
