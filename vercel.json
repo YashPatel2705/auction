@@ -1,6 +1,12 @@
 {
+  "buildCommand": "vite build",
+  "devCommand": "vite",
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/((?!api/|src/|@|node_modules/|assets/).*)",
+      "destination": "/"
+    }
   ]
 }

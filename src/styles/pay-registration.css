@@ -312,6 +312,24 @@
   min-width: min(100%, 140px);
 }
 
+.pr-photo-preview-wrap {
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbf9fa;
+}
+
+.pr-photo-preview {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  object-fit: cover;
+}
+
 @media (max-width: 640px) {
   .pr-row-2-summary,
   .pr-row-2-form,
