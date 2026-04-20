@@ -11,6 +11,7 @@ import { supabase } from "../lib/supabase";
 import "../styles/pay-registration.css";
 
 const MAX_REGISTRATIONS = 160;
+const REGISTRATION_CLOSED = true;
 
 const initialForm = {
   fullName: "",
@@ -368,8 +369,15 @@ export default function RegistrationPage() {
           </div>
         </div>
 
-        {success !== "pay_later_success" &&
-        success !== "pay_later_waiting_list" ? (
+        {REGISTRATION_CLOSED ? (
+          <div className="pr-pay-confirmed" aria-live="polite">
+            <h2 className="teko pr-title">Registrations Closed</h2>
+            <p className="pr-reg-success-message">
+              Registrations are full for the 2026 tournament.
+            </p>
+          </div>
+        ) : success !== "pay_later_success" &&
+          success !== "pay_later_waiting_list" ? (
           <>
             <div className="reg-form-grid">
               <label className="pr-field">

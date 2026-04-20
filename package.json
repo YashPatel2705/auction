@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "dev:full",
+    "dev": "npm run dev:full",
     "dev:vite": "vite",
     "dev:full": "vercel dev --listen 3000",
     "dev:vercel": "vercel dev --listen 3000",
