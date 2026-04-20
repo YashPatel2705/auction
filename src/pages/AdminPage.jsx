@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth }         from '../hooks/useAuth'
-import { usePlayers }      from '../hooks/usePlayers'
 import { supabase }        from '../lib/supabase'
 
 function LoginGate({ onSignIn }) {
@@ -41,9 +40,7 @@ function LoginGate({ onSignIn }) {
   )
 }
 
-function Header({ players, user, onSignOut }) {
-  const available = players.filter(p => p.status === 'available').length
-  const sold      = players.filter(p => p.status === 'sold').length
+function Header({ user, onSignOut }) {
   return (
     <div style={{ background:'linear-gradient(135deg,#0a1628,#0d2040)', borderBottom:'1px solid #1e3a5f' }}>
       <div className="mob-header-inner" style={{ maxWidth:1440, margin:'0 auto', padding:'0 20px', height:62, display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
@@ -55,14 +52,6 @@ function Header({ players, user, onSignOut }) {
           </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div className="mob-header-stats" style={{ display:'flex', gap:8 }}>
-            {[{ l:'Available', v:available, c:'#00c864' }, { l:'Sold', v:sold, c:'#ffb060' }].map(s => (
-              <div key={s.l} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'5px 14px', textAlign:'center' }}>
-                <div className="teko" style={{ fontSize:20, color:s.c, lineHeight:1 }}>{s.v}</div>
-                <div style={{ fontSize:9, color:'#5a8fba', textTransform:'uppercase', letterSpacing:1, fontWeight:700 }}>{s.l}</div>
-              </div>
-            ))}
-          </div>
           <div style={{ display:'flex', alignItems:'center', gap:8, background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'5px 12px' }}>
             <span style={{ fontSize:11, color:'#5a8fba', fontWeight:600, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
               {user?.email}
@@ -338,7 +327,6 @@ function PlayersDataTable() {
 
 export default function AdminPage() {
   const { session, loading: authLoading, user, signIn, signOut } = useAuth()
-  const { players, loading:pLoad, error:pErr } = usePlayers()
 
   if (authLoading) return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
@@ -349,28 +337,9 @@ export default function AdminPage() {
 
   if (!session) return <LoginGate onSignIn={signIn} />
 
-  const loading = pLoad
-  const error   = pErr
-
-  if (loading) return (
-    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
-      <div style={{ fontSize:52 }}>🏏</div>
-      <div className="teko" style={{ fontSize:24, letterSpacing:3, color:'#00c864' }}>LOADING…</div>
-      <div style={{ width:200, height:3, background:'#1e3a5f', borderRadius:2, overflow:'hidden' }}>
-        <div style={{ height:'100%', width:'55%', background:'#00c864', borderRadius:2, animation:'loadBar 1s ease-in-out infinite' }} />
-      </div>
-    </div>
-  )
-
-  if (error) return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#ef4444', fontSize:16, padding:16, textAlign:'center' }}>
-      ❌ Supabase error: {error}
-    </div>
-  )
-
   return (
     <div style={{ minHeight:'100vh' }}>
-      <Header players={players} user={user} onSignOut={signOut} />
+      <Header user={user} onSignOut={signOut} />
 
       <div className="mob-content" style={{ maxWidth:1440, margin:'0 auto', padding:18 }}>
         <PlayersDataTable />
