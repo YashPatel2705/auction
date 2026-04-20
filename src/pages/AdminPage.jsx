@@ -1,11 +1,12 @@
 // src/pages/AdminPage.jsx
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth }         from '../hooks/useAuth'
 import { usePlayers }      from '../hooks/usePlayers'
 import { useTeams }        from '../hooks/useTeams'
 import { useBundles }      from '../hooks/useBundles'
 import { useToast }        from '../hooks/useToast'
+import { supabase }        from '../lib/supabase'
 import AuctionStage        from '../components/AuctionStage'
 import PlayerPool          from '../components/PlayerPool'
 import TeamsView           from '../components/TeamsView'
@@ -94,9 +95,240 @@ function Header({ players, user, onReset, onSignOut }) {
   )
 }
 
+const fmtBool = (value) => (value ? 'Yes' : 'No')
+
+function PlayersDataTable() {
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [photoFilter, setPhotoFilter] = useState('all')
+  const [tshirtFilter, setTshirtFilter] = useState('all')
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [keeperFilter, setKeeperFilter] = useState('all')
+
+  useEffect(() => {
+    const mapRow = (row) => ({
+      id: row.id,
+      fullName: row.full_name ?? '-',
+      email: row.email ?? '-',
+      phoneNumber: row.mobile ?? '-',
+      status: row.status ?? '-',
+      referenceName: row.reference_name ?? '-',
+      battingRating: row.batting_rating ?? '-',
+      bowlingRating: row.bowling_rating ?? '-',
+      photoUrl: row.photo_url ?? '',
+      tshirtSize: row.tshirt_size ?? '-',
+      role: row.role ?? '-',
+      isKeeper: !!row.is_keeper,
+    })
+
+    const fetchRows = async () => {
+      setLoading(true)
+      setError('')
+      const { data, error: fetchErr } = await supabase
+        .from('registrations')
+        .select('id, full_name, email, mobile, status, reference_name, batting_rating, bowling_rating, photo_url, tshirt_size, role, is_keeper, active')
+        .eq('active', true)
+        .order('created_at', { ascending: true })
+
+      if (fetchErr) {
+        setError(fetchErr.message)
+        setLoading(false)
+        return
+      }
+
+      setRows((data ?? []).map(mapRow))
+      setLoading(false)
+    }
+
+    fetchRows()
+
+    const channel = supabase
+      .channel('registrations-admin-table')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, () => fetchRows())
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  if (loading) {
+    return (
+      <div style={{ background:'#0a1628', border:'1px solid #1e3a5f', borderRadius:14, padding:16, color:'#7ab4d8', fontSize:14, fontWeight:600 }}>
+        Loading players data...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ background:'#2a1010', border:'1px solid #7f1d1d', borderRadius:14, padding:16, color:'#f87171', fontSize:13, fontWeight:700 }}>
+        Failed to load players data: {error}
+      </div>
+    )
+  }
+
+  const PRIMARY_LIMIT = 160
+  const primaryRowsAll = rows.slice(0, PRIMARY_LIMIT)
+  const waitingRowsAll = rows.slice(PRIMARY_LIMIT)
+  const columns = ['Full Name', 'Email', 'Phone Number', 'Status', 'Reference Name', 'Batting Rating', 'Bowling Rating', 'Photo', 'Tshirt Size', 'Role', 'Is Keeper']
+  const normalize = (value) => String(value ?? '').trim().toLowerCase()
+
+  const statusOptions = [...new Set(rows.map(r => normalize(r.status)).filter(Boolean).filter(v => v !== '-'))]
+  const tshirtOptions = [...new Set(rows.map(r => String(r.tshirtSize ?? '').trim()).filter(Boolean).filter(v => v !== '-'))]
+  const roleOptions = [...new Set(rows.map(r => normalize(r.role)).filter(Boolean).filter(v => v !== '-'))]
+
+  const matchesFilters = (row) => {
+    const q = normalize(searchTerm)
+    if (q) {
+      const searchable = `${row.fullName} ${row.email} ${row.phoneNumber}`.toLowerCase()
+      if (!searchable.includes(q)) return false
+    }
+    if (statusFilter !== 'all' && normalize(row.status) !== statusFilter) return false
+    if (photoFilter === 'yes' && !row.photoUrl) return false
+    if (photoFilter === 'no' && row.photoUrl) return false
+    if (tshirtFilter !== 'all' && String(row.tshirtSize ?? '').trim() !== tshirtFilter) return false
+    if (roleFilter !== 'all' && normalize(row.role) !== roleFilter) return false
+    if (keeperFilter === 'yes' && !row.isKeeper) return false
+    if (keeperFilter === 'no' && row.isKeeper) return false
+    return true
+  }
+
+  const primaryRows = primaryRowsAll.filter(matchesFilters)
+  const waitingRows = waitingRowsAll.filter(matchesFilters)
+  const filteredTotal = primaryRows.length + waitingRows.length
+
+  const renderTable = (tableRows, emptyText) => (
+    <div style={{ overflowX:'auto' }}>
+      <table style={{ width:'100%', minWidth:1380, borderCollapse:'collapse' }}>
+        <thead>
+          <tr style={{ background:'#08111e' }}>
+            {columns.map((col) => (
+              <th key={col} style={{ textAlign:'left', padding:'12px 14px', color:'#84bde3', fontSize:11, textTransform:'uppercase', letterSpacing:0.8, borderBottom:'1px solid #1e3a5f', whiteSpace:'nowrap' }}>
+                {col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {tableRows.map((row, idx) => (
+            <tr key={row.id} style={{ background: idx % 2 ? '#091628' : '#0a1628' }}>
+              <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}>{row.fullName}</td>
+              <td style={{ padding:'10px 14px', color:'#9fd2f2', fontSize:13, whiteSpace:'nowrap' }}>{row.email}</td>
+              <td style={{ padding:'10px 14px', color:'#d8e8f7', fontSize:13, whiteSpace:'nowrap' }}>{row.phoneNumber}</td>
+              <td style={{ padding:'10px 14px', color: row.status === 'paid' ? '#00c864' : '#ffb060', fontSize:12, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{row.status}</td>
+              <td style={{ padding:'10px 14px', color:'#d8e8f7', fontSize:13, whiteSpace:'nowrap' }}>{row.referenceName}</td>
+              <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, whiteSpace:'nowrap' }}>{row.battingRating}</td>
+              <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, whiteSpace:'nowrap' }}>{row.bowlingRating}</td>
+              <td style={{ padding:'10px 14px', color:'#d8e8f7', fontSize:13, whiteSpace:'nowrap' }}>
+                {row.photoUrl ? (
+                  <a href={row.photoUrl} target="_blank" rel="noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:8, color:'#7ec3ee', fontWeight:700, textDecoration:'none' }}>
+                    <img src={row.photoUrl} alt={row.fullName} style={{ width:34, height:34, objectFit:'cover', borderRadius:6, border:'1px solid #1e3a5f' }} />
+                    View
+                  </a>
+                ) : '-'}
+              </td>
+              <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, whiteSpace:'nowrap' }}>{row.tshirtSize}</td>
+              <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, textTransform:'capitalize', whiteSpace:'nowrap' }}>{row.role}</td>
+              <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, whiteSpace:'nowrap' }}>{fmtBool(row.isKeeper)}</td>
+            </tr>
+          ))}
+          {tableRows.length === 0 && (
+            <tr>
+              <td colSpan={11} style={{ padding:18, color:'#7ab4d8', fontSize:13, fontWeight:600, textAlign:'center' }}>
+                {emptyText}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  )
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ background:'#0a1628', border:'1px solid #1e3a5f', borderRadius:14, padding:'12px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+        <div className="teko" style={{ color:'#fff', fontSize:24, letterSpacing:1.3 }}>TOTAL REGISTRATIONS</div>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ fontSize:11, color:'#7ab4d8', fontWeight:700, textTransform:'uppercase', letterSpacing:0.8 }}>All</span>
+          <span style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'6px 10px', color:'#00c864', fontWeight:800, fontSize:13 }}>{rows.length}</span>
+          <span style={{ fontSize:11, color:'#7ab4d8', fontWeight:700, textTransform:'uppercase', letterSpacing:0.8 }}>Filtered</span>
+          <span style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'6px 10px', color:'#9fd2f2', fontWeight:800, fontSize:13 }}>{filteredTotal}</span>
+        </div>
+      </div>
+
+      <div style={{ background:'#0a1628', border:'1px solid #1e3a5f', borderRadius:14, padding:14, display:'grid', gridTemplateColumns:'repeat(6, minmax(140px, 1fr))', gap:10 }}>
+        <input
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          placeholder="Search name, email, phone"
+          style={{ gridColumn:'span 2', background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#e8edf5', fontSize:13, fontWeight:600 }}
+        />
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#e8edf5', fontSize:13, fontWeight:600 }}>
+          <option value="all">Status: All</option>
+          {statusOptions.map(v => <option key={v} value={v}>{v.toUpperCase()}</option>)}
+        </select>
+        <select value={photoFilter} onChange={e => setPhotoFilter(e.target.value)} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#e8edf5', fontSize:13, fontWeight:600 }}>
+          <option value="all">Photo: All</option>
+          <option value="yes">Photo: Yes</option>
+          <option value="no">Photo: No</option>
+        </select>
+        <select value={tshirtFilter} onChange={e => setTshirtFilter(e.target.value)} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#e8edf5', fontSize:13, fontWeight:600 }}>
+          <option value="all">Tshirt: All</option>
+          {tshirtOptions.map(v => <option key={v} value={v}>{v}</option>)}
+        </select>
+        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#e8edf5', fontSize:13, fontWeight:600 }}>
+          <option value="all">Role: All</option>
+          {roleOptions.map(v => <option key={v} value={v}>{v}</option>)}
+        </select>
+        <select value={keeperFilter} onChange={e => setKeeperFilter(e.target.value)} style={{ background:'#08111e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 12px', color:'#e8edf5', fontSize:13, fontWeight:600 }}>
+          <option value="all">Keeper: All</option>
+          <option value="yes">Keeper: Yes</option>
+          <option value="no">Keeper: No</option>
+        </select>
+        <button
+          onClick={() => {
+            setSearchTerm('')
+            setStatusFilter('all')
+            setPhotoFilter('all')
+            setTshirtFilter('all')
+            setRoleFilter('all')
+            setKeeperFilter('all')
+          }}
+          style={{ background:'#1b2c43', border:'1px solid #33577f', borderRadius:8, padding:'10px 12px', color:'#9fd2f2', fontSize:12, fontWeight:700, cursor:'pointer' }}
+        >
+          Clear Filters
+        </button>
+      </div>
+
+      <div style={{ background:'#0a1628', border:'1px solid #1e3a5f', borderRadius:14, overflow:'hidden' }}>
+        <div style={{ padding:'14px 16px', borderBottom:'1px solid #1e3a5f', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12 }}>
+          <div className="teko" style={{ color:'#fff', fontSize:26, letterSpacing:1.5 }}>PLAYERS DATA</div>
+          <div style={{ fontSize:12, color:'#6fa4c8', fontWeight:700 }}>{primaryRows.length} / {primaryRowsAll.length} rows</div>
+        </div>
+        {renderTable(primaryRows, 'No players match filters in primary pool.')}
+      </div>
+
+      <div style={{ background:'#0a1628', border:'1px solid #7f1d1d', borderRadius:14, overflow:'hidden' }}>
+        <div style={{ padding:'14px 16px', borderBottom:'1px solid #7f1d1d', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12 }}>
+          <div className="teko" style={{ color:'#fecaca', fontSize:24, letterSpacing:1.5 }}>WAITING POOL</div>
+          <div style={{ fontSize:12, color:'#fca5a5', fontWeight:700 }}>{waitingRows.length} / {waitingRowsAll.length} rows</div>
+        </div>
+        <div style={{ padding:'10px 16px', color:'#fca5a5', fontSize:12, fontWeight:700, borderBottom:'1px solid #7f1d1d' }}>
+          The rest after first 160 registrations are in waiting pool.
+        </div>
+        {renderTable(waitingRows, 'No players match filters in waiting pool.')}
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const { session, loading: authLoading, user, signIn, signOut } = useAuth()
-  const [view,     setView]     = useState('auction')
+  const [view,     setView]     = useState('players-data')
   const [poolJump, setPoolJump] = useState(null)
 
   const { players, loading:pLoad, error:pErr, sellPlayer, releasePlayer, resetAuction, updatePlayer, deletePlayer, addPlayer } = usePlayers()
@@ -149,6 +381,7 @@ export default function AdminPage() {
     { id:'pool',           icon:'👥', label:'Player Pool',   badge: available },
     { id:'bundles',        icon:'📦', label:'Bundles',       badge: activeBundles || null },
     { id:'teams',          icon:'🏆', label:'Teams'          },
+    { id:'players-data',   icon:'📋', label:'Players Data'   },
     { id:'manage-players', icon:'⚙️', label:'Edit Players'   },
     { id:'manage-teams',   icon:'🛠️', label:'Edit Teams'     },
   ]
@@ -204,6 +437,7 @@ export default function AdminPage() {
           />
         )}
         {view==='teams'          && <TeamsView players={players} teams={teams} onRelease={releasePlayer} setCaptain={setCaptain} setViceCaptain={setViceCaptain} isAdmin={true} showToast={showToast} />}
+        {view==='players-data'   && <PlayersDataTable />}
         {view==='manage-players' && <ManagePlayers players={players} onUpdate={updatePlayer} onDelete={deletePlayer} onAdd={addPlayer} showToast={showToast} />}
         {view==='manage-teams'   && <ManageTeams teams={teams} onAdd={addTeam} onUpdate={updateTeam} onDelete={deleteTeam} showToast={showToast} />}
       </div>
