@@ -69,6 +69,11 @@ function Header({ user, onSignOut }) {
 
 const fmtBool = (value) => (value ? 'Yes' : 'No')
 const PHOTO_LINK_BASE_URL = 'https://hpkboxcricketauction.vercel.app'
+const buildPaymentLink = (registrationId) => (
+  registrationId
+    ? `${PHOTO_LINK_BASE_URL}/pay?rid=${encodeURIComponent(registrationId)}`
+    : ''
+)
 const buildPhotoUploadLink = (registrationId) => (
   registrationId
     ? `${PHOTO_LINK_BASE_URL}/photo-upload?rid=${encodeURIComponent(registrationId)}`
@@ -85,7 +90,7 @@ function PlayersDataTable() {
   const [tshirtFilter, setTshirtFilter] = useState('all')
   const [roleFilter, setRoleFilter] = useState('all')
   const [keeperFilter, setKeeperFilter] = useState('all')
-  const [copiedRowId, setCopiedRowId] = useState(null)
+  const [copiedKey, setCopiedKey] = useState(null)
 
   useEffect(() => {
     const mapRow = (row) => ({
@@ -102,6 +107,7 @@ function PlayersDataTable() {
       tshirtSize: row.tshirt_size ?? '-',
       role: row.role ?? '-',
       isKeeper: !!row.is_keeper,
+      paymentLink: buildPaymentLink(row.unique_id),
       photoLink: buildPhotoUploadLink(row.unique_id),
     })
 
@@ -155,7 +161,7 @@ function PlayersDataTable() {
   const PRIMARY_LIMIT = 160
   const primaryRowsAll = rows.slice(0, PRIMARY_LIMIT)
   const waitingRowsAll = rows.slice(PRIMARY_LIMIT)
-  const columns = ['Full Name', 'Email', 'Phone Number', 'Status', 'Reference Name', 'Batting Rating', 'Bowling Rating', 'Photo', 'Tshirt Size', 'Role', 'Is Keeper', 'Photo Link']
+  const columns = ['Full Name', 'Email', 'Phone Number', 'Status', 'Reference Name', 'Batting Rating', 'Bowling Rating', 'Photo', 'Tshirt Size', 'Role', 'Is Keeper', 'Payment Link', 'Photo Link']
   const normalize = (value) => String(value ?? '').trim().toLowerCase()
 
   const statusOptions = [...new Set(rows.map(r => normalize(r.status)).filter(Boolean).filter(v => v !== '-'))]
@@ -184,7 +190,7 @@ function PlayersDataTable() {
 
   const renderTable = (tableRows, emptyText) => (
     <div style={{ overflowX:'auto' }}>
-      <table style={{ width:'100%', minWidth:1520, borderCollapse:'collapse' }}>
+      <table style={{ width:'100%', minWidth:1640, borderCollapse:'collapse' }}>
         <thead>
           <tr style={{ background:'#08111e' }}>
             {columns.map((col) => (
@@ -216,20 +222,40 @@ function PlayersDataTable() {
               <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, textTransform:'capitalize', whiteSpace:'nowrap' }}>{row.role}</td>
               <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, whiteSpace:'nowrap' }}>{fmtBool(row.isKeeper)}</td>
               <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, whiteSpace:'nowrap' }}>
-                {row.photoLink ? (
+                {row.paymentLink ? (
                   <button
                     onClick={async () => {
+                      const key = `${row.id}:pay`
                       try {
-                        await navigator.clipboard.writeText(row.photoLink)
-                        setCopiedRowId(row.id)
-                        setTimeout(() => setCopiedRowId(prev => (prev === row.id ? null : prev)), 1200)
+                        await navigator.clipboard.writeText(row.paymentLink)
+                        setCopiedKey(key)
+                        setTimeout(() => setCopiedKey(prev => (prev === key ? null : prev)), 1200)
                       } catch (copyErr) {
                         // clipboard may be blocked by browser
                       }
                     }}
-                    style={{ background:'#1b2c43', border:'1px solid #33577f', borderRadius:8, padding:'7px 10px', color: copiedRowId === row.id ? '#00c864' : '#9fd2f2', fontSize:12, fontWeight:700, cursor:'pointer' }}
+                    style={{ background:'#1b2c43', border:'1px solid #33577f', borderRadius:8, padding:'7px 10px', color: copiedKey === `${row.id}:pay` ? '#00c864' : '#9fd2f2', fontSize:12, fontWeight:700, cursor:'pointer' }}
                   >
-                    {copiedRowId === row.id ? 'Copied' : 'Copy Link'}
+                    {copiedKey === `${row.id}:pay` ? 'Copied' : 'Copy Link'}
+                  </button>
+                ) : '-'}
+              </td>
+              <td style={{ padding:'10px 14px', color:'#e8edf5', fontSize:13, whiteSpace:'nowrap' }}>
+                {row.photoLink ? (
+                  <button
+                    onClick={async () => {
+                      const key = `${row.id}:photo`
+                      try {
+                        await navigator.clipboard.writeText(row.photoLink)
+                        setCopiedKey(key)
+                        setTimeout(() => setCopiedKey(prev => (prev === key ? null : prev)), 1200)
+                      } catch (copyErr) {
+                        // clipboard may be blocked by browser
+                      }
+                    }}
+                    style={{ background:'#1b2c43', border:'1px solid #33577f', borderRadius:8, padding:'7px 10px', color: copiedKey === `${row.id}:photo` ? '#00c864' : '#9fd2f2', fontSize:12, fontWeight:700, cursor:'pointer' }}
+                  >
+                    {copiedKey === `${row.id}:photo` ? 'Copied' : 'Copy Link'}
                   </button>
                 ) : '-'}
               </td>
@@ -237,7 +263,7 @@ function PlayersDataTable() {
           ))}
           {tableRows.length === 0 && (
             <tr>
-              <td colSpan={12} style={{ padding:18, color:'#7ab4d8', fontSize:13, fontWeight:600, textAlign:'center' }}>
+              <td colSpan={13} style={{ padding:18, color:'#7ab4d8', fontSize:13, fontWeight:600, textAlign:'center' }}>
                 {emptyText}
               </td>
             </tr>
