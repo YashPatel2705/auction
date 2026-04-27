@@ -22,6 +22,7 @@ function Avatar({ src, name, size = 80 }) {
   if (src && !err) {
     return (
       <img src={src} alt={name} onError={() => setErr(true)}
+        loading="lazy" decoding="async"
         style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover',
           border: '2px solid #1e3a5f', flexShrink: 0 }} />
     )
