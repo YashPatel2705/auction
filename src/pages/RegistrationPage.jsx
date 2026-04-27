@@ -1,0 +1,629 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { YdsPaymentSdk } from "yds-payment-sdk";
+import { reportClientError } from "../lib/errorLogger";
+import {
+  parseRegistrationForm,
+  toRegistrationInsertPayload,
+  toYdsRegistrationSubmissionData,
+} from "../lib/formSubmit";
+import { supabase } from "../lib/supabase";
+import "../styles/pay-registration.css";
+
+const MAX_REGISTRATIONS = 160;
+const REGISTRATION_CLOSED = true;
+
+const initialForm = {
+  fullName: "",
+  mobileNumber: "",
+  email: "",
+  dob: "",
+  battingRating: 5,
+  bowlingRating: 5,
+  tshirtSize: "",
+  role: "batsman",
+  participatedIn2025: "no",
+  referenceName: "",
+};
+
+function sanitizeFileName(name) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
+function mapSupabaseErrorToUiMessage(message) {
+  const text = (message || "").toLowerCase();
+
+  if (
+    text.includes("object exceeded allowed size limit") ||
+    text.includes("object exceeded the maximum allowed size")
+  ) {
+    return "Image too big in size. Max 2MB.";
+  }
+
+  if (text.includes("mime type") && text.includes("not allowed")) {
+    return "Invalid image format. Use JPG, PNG, or WebP.";
+  }
+
+  if (text.includes("bucket not found")) {
+    return "Image upload service issue. Try again later.";
+  }
+
+  if (
+    text.includes("row-level security") ||
+    text.includes("permission denied") ||
+    text.includes("not authorized")
+  ) {
+    return "You do not have permission to submit right now.";
+  }
+
+  if (
+    text.includes("duplicate key value violates unique constraint") ||
+    text.includes("23505")
+  ) {
+    return "Registration already exists for this email or mobile number.";
+  }
+
+  if (
+    text.includes("invalid input syntax") ||
+    text.includes("value too long")
+  ) {
+    return "Some form values are invalid. Please review and retry.";
+  }
+
+  if (
+    text.includes("failed to fetch") ||
+    text.includes("network request failed") ||
+    text.includes("timeout")
+  ) {
+    return "Network issue. Check connection and retry.";
+  }
+
+  if (text.includes("jwt expired") || text.includes("invalid jwt")) {
+    return "Session expired. Refresh and try again.";
+  }
+
+  return "Something went wrong. Please try again.";
+}
+
+export default function RegistrationPage() {
+  const navigate = useNavigate();
+  const [form, setForm] = useState(initialForm);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const prev = document.title;
+    document.title = "Registration || HPBCT 2026";
+    return () => {
+      document.title = prev;
+    };
+  }, []);
+
+  const onChange = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const uploadPhoto = async () => {
+    if (!photoFile) throw new Error("Photo is required");
+
+    const path = `registration/${Date.now()}-${sanitizeFileName(photoFile.name)}`;
+    const { error: uploadError } = await supabase.storage
+      .from("player-photos")
+      .upload(path, photoFile, { upsert: false });
+
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data } = supabase.storage.from("player-photos").getPublicUrl(path);
+    return { path, publicUrl: data?.publicUrl ?? null };
+  };
+
+  const submit = async (paymentChoice) => {
+    const parsed = parseRegistrationForm(form);
+    if (!parsed.ok) {
+      setError(parsed.error);
+      setSuccess("");
+      return;
+    }
+    const reg = parsed.data;
+
+    setBusy(true);
+    setError("");
+    setSuccess("");
+
+    let uniqueId = null;
+    let submitStep = "check_existing";
+
+    try {
+      const [
+        { data: existingByEmail, error: emailLookupError },
+        { data: existingByMobile, error: mobileLookupError },
+      ] = await Promise.all([
+        supabase
+          .from("registrations")
+          .select("unique_id,status")
+          .eq("email", reg.email)
+          .limit(1),
+        supabase
+          .from("registrations")
+          .select("unique_id,status")
+          .eq("mobile", reg.mobile)
+          .limit(1),
+      ]);
+
+      if (emailLookupError) throw new Error(emailLookupError.message);
+      if (mobileLookupError) throw new Error(mobileLookupError.message);
+
+      const existingRow = existingByEmail?.[0] ?? existingByMobile?.[0];
+      const existingId = existingRow?.unique_id;
+      const existingStatus = (existingRow?.status || "").toLowerCase();
+      if (existingId) {
+        if (existingStatus === "paid") {
+          navigate(`/pay?rid=${existingId}`);
+          return;
+        }
+        setSuccess("pay_later_success");
+        return;
+      }
+
+      let photoUrl = null;
+      if (photoFile) {
+        submitStep = "upload_photo";
+        try {
+          const uploadResult = await uploadPhoto();
+          photoUrl = uploadResult.publicUrl;
+        } catch (uploadErr) {
+          reportClientError(uploadErr, {
+            kind: "registration_submit_error",
+            email: reg?.email,
+            meta: {
+              component: "RegistrationPage",
+              action: "submit",
+              page: "registration",
+              section: "submit",
+              status: "failed",
+              flow: paymentChoice === "pay_now" ? "pay_now" : "pay_later",
+              sdk: "supabase",
+              sdkStep: "upload_photo",
+              errorCode: "REG_PHOTO_UPLOAD_FAILED",
+              rid: uniqueId,
+              supabaseOp: "upload_player_photo",
+            },
+          });
+          // Ignore upload failure; proceed with registration without photo URL.
+          photoUrl = null;
+        }
+      }
+
+      const payload = toRegistrationInsertPayload(reg, photoUrl);
+      submitStep = "insert_registration";
+
+      const { data, error: insertError } = await supabase
+        .from("registrations")
+        .insert(payload)
+        .select("unique_id")
+        .single();
+      if (insertError) throw new Error(insertError.message);
+      uniqueId = data.unique_id;
+      if (paymentChoice === "pay_now") {
+        navigate(`/pay?rid=${data.unique_id}`);
+        return;
+      }
+
+      submitStep = "submit_yds";
+      await YdsPaymentSdk.submit(import.meta.env.VITE_YDS_PAYMENT_SDK_URL, {
+        formId: import.meta.env.VITE_YDS_PAYMENT_SDK_FORM_ID,
+        submissionData: toYdsRegistrationSubmissionData(reg),
+      });
+
+      const { count: activeRegCount, error: activeCountError } = await supabase
+        .from("registrations")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["pending", "paid"]);
+
+      if (activeCountError) {
+        reportClientError(new Error(activeCountError.message), {
+          kind: "registration_submit_error",
+          email: reg?.email,
+          meta: {
+            component: "RegistrationPage",
+            action: "submit",
+            page: "registration",
+            section: "active_count",
+            status: "failed",
+            flow: "pay_later",
+            sdk: "supabase",
+            sdkStep: "count_active_registrations",
+            errorCode: "REG_ACTIVE_COUNT_FAILED",
+            supabaseOp: "count_registrations",
+          },
+        });
+      }
+
+      const overCapacity =
+        typeof activeRegCount === "number" &&
+        activeRegCount > MAX_REGISTRATIONS;
+      setSuccess(overCapacity ? "pay_later_waiting_list" : "pay_later_success");
+    } catch (err) {
+      if (uniqueId) {
+        try {
+          submitStep = "rollback_insert";
+          const { error: rollbackError } = await supabase
+            .from("registrations")
+            .delete()
+            .eq("unique_id", uniqueId);
+          if (rollbackError) throw new Error(rollbackError.message);
+        } catch (rollbackErr) {
+          reportClientError(rollbackErr, {
+            kind: "registration_submit_error",
+            email: reg?.email,
+            meta: {
+              component: "RegistrationPage",
+              action: "submit",
+              page: "registration",
+              section: "submit",
+              status: "failed",
+              flow: paymentChoice === "pay_now" ? "pay_now" : "pay_later",
+              sdk: "supabase",
+              sdkStep: "rollback_insert",
+              errorCode: "REG_ROLLBACK_FAILED",
+              rid: uniqueId,
+              supabaseOp: "delete_registration",
+            },
+          });
+        }
+      }
+      const registrationErrorCodeByStep = {
+        check_existing: "REG_CHECK_EXISTING_FAILED",
+        upload_photo: "REG_PHOTO_UPLOAD_FAILED",
+        insert_registration: "REG_INSERT_FAILED",
+        submit_yds: "REG_YDS_SUBMIT_FAILED",
+        rollback_insert: "REG_ROLLBACK_FAILED",
+      };
+      reportClientError(err, {
+        kind: "registration_submit_error",
+        email: reg?.email,
+        meta: {
+          component: "RegistrationPage",
+          action: "submit",
+          page: "registration",
+          section: "submit",
+          status: "failed",
+          flow: paymentChoice === "pay_now" ? "pay_now" : "pay_later",
+          sdk: submitStep === "submit_yds" ? "yds-payment-sdk" : "supabase",
+          sdkStep: submitStep,
+          errorCode:
+            registrationErrorCodeByStep[submitStep] || "REG_SUBMIT_UNKNOWN",
+          rid: uniqueId,
+          supabaseOp:
+            submitStep === "check_existing"
+              ? "select_registration"
+              : submitStep === "insert_registration"
+                ? "insert_registration"
+                : submitStep === "rollback_insert"
+                  ? "delete_registration"
+                  : "none",
+        },
+      });
+      const errorMessage = err?.message || "Failed to submit registration";
+      setError(mapSupabaseErrorToUiMessage(errorMessage));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="pr-page-outer">
+      {busy && (
+        <div className="pr-loading-overlay" aria-live="polite">
+          <div className="pr-spinner" aria-hidden="true" />
+          <span className="pr-loading-text">Submitting...</span>
+        </div>
+      )}
+      <div className="pr-card pr-card--reg">
+        <h1 className="teko pr-title">Registration</h1>
+
+        <div className="pr-info-box">
+          <div className="pr-box-title">
+            HariPrabodham Box Cricket Tournament 2026
+          </div>
+
+          <div className="pr-details">
+            <div>
+              <span className="pr-detail-label">DATE:</span> May 10, 2026
+            </div>
+            <div>
+              <span className="pr-detail-label">VENUE:</span> University of
+              Waterloo, 220 Columbia St W, Waterloo, ON N2L 0A1
+            </div>
+            <div>
+              <span className="pr-detail-label">FEES:</span> $30
+            </div>
+
+            <div className="pr-contact-block">
+              <div className="pr-contact-heading">CONTACT DETAILS:</div>
+              <div>
+                Het Patel:{" "}
+                <a href="tel:+15199824792" className="pr-link">
+                  +1 (519) 982-4792
+                </a>
+              </div>
+              <div>
+                Nirmal Patel:{" "}
+                <a href="tel:+16476877565" className="pr-link">
+                  +1 (647) 687-7565
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="pr-section-left">
+            <div className="pr-strict-title">Strictly Note:</div>
+            <ul className="pr-strict-list">
+              <li>
+                Your registration is only confirmed once you pay the fees.
+              </li>
+              <li>Fees are non-refundable.</li>
+            </ul>
+          </div>
+        </div>
+
+        {REGISTRATION_CLOSED ? (
+          <div className="pr-pay-confirmed" aria-live="polite">
+            <h2 className="teko pr-title">Registrations Closed</h2>
+            <p className="pr-reg-success-message">
+              Registrations are full for the 2026 tournament.
+            </p>
+          </div>
+        ) : success !== "pay_later_success" &&
+          success !== "pay_later_waiting_list" ? (
+          <>
+            <div className="reg-form-grid">
+              <label className="pr-field">
+                <span className="pr-field-label">Full Name</span>
+                <input
+                  className="pr-input"
+                  name="fullName"
+                  placeholder="Atmiya Patel"
+                  value={form.fullName}
+                  onChange={(e) => onChange("fullName", e.target.value)}
+                  required
+                  autoComplete="name"
+                />
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">Mobile Number</span>
+                <input
+                  className="pr-input"
+                  name="mobileNumber"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={15}
+                  placeholder="6471234567"
+                  value={form.mobileNumber}
+                  onChange={(e) =>
+                    onChange("mobileNumber", e.target.value.replace(/\D/g, ""))
+                  }
+                  required
+                  autoComplete="tel"
+                />
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">Email</span>
+                <input
+                  className="pr-input"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={form.email}
+                  onChange={(e) => onChange("email", e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">Date of Birth</span>
+                <input
+                  className="pr-input"
+                  name="dob"
+                  type="date"
+                  value={form.dob}
+                  onChange={(e) => onChange("dob", e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">India T-shirt Size</span>
+                <select
+                  className="pr-input"
+                  name="tshirtSize"
+                  value={form.tshirtSize}
+                  onChange={(e) => onChange("tshirtSize", e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Select size
+                  </option>
+                  <option value="S">S</option>
+                  <option value="M">M</option>
+                  <option value="L">L</option>
+                  <option value="XL">XL</option>
+                  <option value="XXL">XXL</option>
+                  <option value="XXXL">XXXL</option>
+                </select>
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">Batting Rating (1-10)</span>
+                <input
+                  className="pr-input"
+                  name="battingRating"
+                  type="number"
+                  min={1}
+                  max={10}
+                  placeholder="1-10"
+                  value={form.battingRating}
+                  onChange={(e) => onChange("battingRating", e.target.value)}
+                  required
+                  inputMode="numeric"
+                />
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">Bowling Rating (1-10)</span>
+                <input
+                  className="pr-input"
+                  name="bowlingRating"
+                  type="number"
+                  min={1}
+                  max={10}
+                  placeholder="1-10"
+                  value={form.bowlingRating}
+                  onChange={(e) => onChange("bowlingRating", e.target.value)}
+                  required
+                  inputMode="numeric"
+                />
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">Role</span>
+                <select
+                  className="pr-input"
+                  name="role"
+                  value={form.role}
+                  onChange={(e) => onChange("role", e.target.value)}
+                  required
+                >
+                  <option value="batsman">Batsman</option>
+                  <option value="bowler">Bowler</option>
+                  <option value="all-rounder">All-rounder</option>
+                  <option value="wicket-keeper">Wicket-keeper</option>
+                </select>
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">
+                  Participated in 2025 box cricket tournament?
+                </span>
+                <select
+                  className="pr-input"
+                  name="participatedIn2025"
+                  value={form.participatedIn2025}
+                  onChange={(e) =>
+                    onChange("participatedIn2025", e.target.value)
+                  }
+                  required
+                >
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">Reference Name</span>
+                <input
+                  className="pr-input"
+                  name="referenceName"
+                  placeholder="Friend/Team Captain"
+                  value={form.referenceName}
+                  onChange={(e) => onChange("referenceName", e.target.value)}
+                  required
+                  autoComplete="off"
+                />
+              </label>
+
+              <label className="pr-field">
+                <span className="pr-field-label">Photo Upload</span>
+                <input
+                  className="pr-input"
+                  type="file"
+                  name="photo"
+                  accept="image/*"
+                  onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                  required
+                />
+                <div className="pr-help-text">
+                  Simple face only photo. Passport style photo will be ideal,
+                  2MB Max.
+                </div>
+              </label>
+            </div>
+
+            <div className="pr-form-actions">
+              <button
+                type="button"
+                onClick={() => submit("pay_later")}
+                disabled={busy}
+                className="pr-primary-btn pr-pay-later-btn"
+              >
+                {busy ? "Submitting..." : "Register"}
+              </button>
+              {/* <button
+                type="button"
+                onClick={() => submit("pay_now")}
+                disabled={busy}
+                className="pr-primary-btn pr-pay-now-btn"
+              >
+                {busy ? "Submitting..." : "Pay Now"}
+              </button> */}
+            </div>
+          </>
+        ) : (
+          <div className="pr-pay-confirmed" aria-live="polite">
+            <h2 className="teko pr-title">Registration successful</h2>
+            <p className="pr-reg-success-message">
+              {success === "pay_later_waiting_list" ? (
+                <>
+                  Your registration was successful, you&apos;ve been put on a
+                  waiting list.{" "}
+                </>
+              ) : (
+                <>
+                  Your registration was successful, but your spot is{" "}
+                  <span className="pr-reg-success-highlight">
+                    NOT CONFIRMED
+                  </span>{" "}
+                  yet, it will only be confirmed after you have paid your
+                  fees.{" "}
+                </>
+              )}
+              <span className="pr-reg-success-highlight">
+                {success === "pay_later_waiting_list"
+                  ? "If you're selected to play, you'll receive a payment link on your email to pay your fees in upcoming days."
+                  : "If you're selected, you'll receive a payment link on your email to pay your fees in upcoming days."}
+              </span>
+            </p>
+            {/* <div className="pr-submit-wrap">
+              <button
+                type="button"
+                className="pr-primary-btn full"
+                onClick={() => window.location.assign(payLaterLink)}
+              >
+                Pay now to book your spot
+              </button>
+            </div> */}
+          </div>
+        )}
+
+        {error && (
+          <output className="pr-error" role="alert" aria-live="assertive">
+            ❌ {error}
+          </output>
+        )}
+        {success &&
+          success !== "pay_later_success" &&
+          success !== "pay_later_waiting_list" && (
+            <output className="pr-success" aria-live="polite">
+              ✅ {success}
+            </output>
+          )}
+      </div>
+    </div>
+  );
+}

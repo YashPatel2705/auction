@@ -1,0 +1,27 @@
+{
+  "name": "cricket-auction",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev:full",
+    "dev:vite": "vite",
+    "dev:full": "vercel dev --listen 3000",
+    "dev:vercel": "vercel dev --listen 3000",
+    "build": "vite build",
+    "preview": "vite preview",
+    "generate:payment:links": "node scripts/generate-payment-links-csv.mjs",
+    "generate:photo:links": "node scripts/generate-photo-links-csv.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.1",
+    "yds-payment-sdk": "file:yds-payment-sdk-v1.0.0.tgz"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "vercel": "^51.4.0",
+    "vite": "^5.2.11"
+  }
+}
