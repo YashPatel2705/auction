@@ -1,7 +1,6 @@
 // src/pages/PlayersPage.jsx
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
 // ── Role config ───────────────────────────────────────────────────────────────
@@ -282,8 +281,6 @@ function FilterBar({ search, setSearch, role, setRole, keeper, setKeeper,
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PlayersPage() {
-  const { session, loading: authLoading, signIn, signOut, user } = useAuth()
-
   const [rows,    setRows]    = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -309,8 +306,6 @@ export default function PlayersPage() {
 
   // Fetch active registrations
   useEffect(() => {
-    if (!session) return
-
     const fetchData = async () => {
       setLoading(true); setError('')
       const { data, error: err } = await supabase
@@ -343,7 +338,7 @@ export default function PlayersPage() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [session])
+  }, [])
 
   // Apply filters + sort
   const filtered = useMemo(() => {
@@ -367,17 +362,6 @@ export default function PlayersPage() {
     return result
   }, [rows, search, role, keeper, sortBat, sortBowl])
 
-  if (authLoading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', background: '#060e1a', color: '#5a8fba', fontSize: 15, fontWeight: 600 }}>
-        Loading…
-      </div>
-    )
-  }
-
-  if (!session) return <LoginGate onSignIn={signIn} />
-
   return (
     <div style={{ minHeight: '100vh', background: '#060e1a', color: '#d8e8f7' }}>
       {/* Header */}
@@ -395,18 +379,6 @@ export default function PlayersPage() {
                 Registered Players
               </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#08111e',
-            border: '1px solid #1e3a5f', borderRadius: 8, padding: '5px 12px' }}>
-            <span style={{ fontSize: 11, color: '#5a8fba', fontWeight: 600,
-              maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user?.email}
-            </span>
-            <button onClick={signOut}
-              style={{ background: 'none', border: 'none', color: '#ef4444',
-                fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
-              Sign out
-            </button>
           </div>
         </div>
       </div>
