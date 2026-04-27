@@ -225,10 +225,10 @@ const selectStyle = {
   color: '#d8e8f7', fontSize: 13, padding: '8px 12px', cursor: 'pointer', outline: 'none',
 }
 
-const DEFAULTS = { search: '', role: 'all', keeper: 'all', minBat: '0', minBowl: '0' }
+const DEFAULTS = { search: '', role: 'all', keeper: 'all', sortBat: 'none', sortBowl: 'none' }
 
 function FilterBar({ search, setSearch, role, setRole, keeper, setKeeper,
-  minBat, setMinBat, minBowl, setMinBowl, total, filtered, onReset, isDirty }) {
+  sortBat, setSortBat, sortBowl, setSortBowl, total, filtered, onReset, isDirty }) {
   return (
     <div style={{ background: '#0a1628', border: '1px solid #1e3a5f', borderRadius: 14,
       padding: '14px 18px', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
@@ -251,17 +251,18 @@ function FilterBar({ search, setSearch, role, setRole, keeper, setKeeper,
         <option value="no">Non-Keeper</option>
       </select>
 
-      <select value={minBat} onChange={e => setMinBat(e.target.value)} style={selectStyle}>
-        <option value="0">Bat ≥ any</option>
-        {[3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>Bat ≥ {n}</option>)}
+      <select value={sortBat} onChange={e => { setSortBat(e.target.value); setSortBowl('none') }} style={selectStyle}>
+        <option value="none">Batting: Default</option>
+        <option value="desc">Batting: High to Low</option>
+        <option value="asc">Batting: Low to High</option>
       </select>
 
-      <select value={minBowl} onChange={e => setMinBowl(e.target.value)} style={selectStyle}>
-        <option value="0">Bowl ≥ any</option>
-        {[3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>Bowl ≥ {n}</option>)}
+      <select value={sortBowl} onChange={e => { setSortBowl(e.target.value); setSortBat('none') }} style={selectStyle}>
+        <option value="none">Bowling: Default</option>
+        <option value="desc">Bowling: High to Low</option>
+        <option value="asc">Bowling: Low to High</option>
       </select>
 
-      {/* Reset button — only visible when filters are active */}
       {isDirty && (
         <button onClick={onReset}
           style={{ background: '#2a1010', border: '1px solid #7f3030', borderRadius: 8,
@@ -289,21 +290,21 @@ export default function PlayersPage() {
   const [selected, setSelected] = useState(null)   // player shown in modal
 
   // Filters
-  const [search,  setSearch]  = useState(DEFAULTS.search)
-  const [role,    setRole]    = useState(DEFAULTS.role)
-  const [keeper,  setKeeper]  = useState(DEFAULTS.keeper)
-  const [minBat,  setMinBat]  = useState(DEFAULTS.minBat)
-  const [minBowl, setMinBowl] = useState(DEFAULTS.minBowl)
+  const [search,   setSearch]   = useState(DEFAULTS.search)
+  const [role,     setRole]     = useState(DEFAULTS.role)
+  const [keeper,   setKeeper]   = useState(DEFAULTS.keeper)
+  const [sortBat,  setSortBat]  = useState(DEFAULTS.sortBat)
+  const [sortBowl, setSortBowl] = useState(DEFAULTS.sortBowl)
 
   const isDirty = search !== DEFAULTS.search || role !== DEFAULTS.role ||
-    keeper !== DEFAULTS.keeper || minBat !== DEFAULTS.minBat || minBowl !== DEFAULTS.minBowl
+    keeper !== DEFAULTS.keeper || sortBat !== DEFAULTS.sortBat || sortBowl !== DEFAULTS.sortBowl
 
   const resetFilters = useCallback(() => {
     setSearch(DEFAULTS.search)
     setRole(DEFAULTS.role)
     setKeeper(DEFAULTS.keeper)
-    setMinBat(DEFAULTS.minBat)
-    setMinBowl(DEFAULTS.minBowl)
+    setSortBat(DEFAULTS.sortBat)
+    setSortBowl(DEFAULTS.sortBowl)
   }, [])
 
   // Fetch active registrations
@@ -344,21 +345,27 @@ export default function PlayersPage() {
     return () => supabase.removeChannel(channel)
   }, [session])
 
-  // Apply filters
+  // Apply filters + sort
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const mb = Number(minBat)
-    const mw = Number(minBowl)
-    return rows.filter(p => {
+    const result = rows.filter(p => {
       if (q && !`${p.fullName} ${p.mobile}`.toLowerCase().includes(q)) return false
       if (role !== 'all' && p.role !== role) return false
       if (keeper === 'yes' && !p.isKeeper) return false
       if (keeper === 'no' && p.isKeeper) return false
-      if (mb > 0 && (p.battingRating == null || p.battingRating < mb)) return false
-      if (mw > 0 && (p.bowlingRating == null || p.bowlingRating < mw)) return false
       return true
     })
-  }, [rows, search, role, keeper, minBat, minBowl])
+    if (sortBat !== 'none') {
+      result.sort((a, b) => sortBat === 'desc'
+        ? (b.battingRating ?? 0) - (a.battingRating ?? 0)
+        : (a.battingRating ?? 0) - (b.battingRating ?? 0))
+    } else if (sortBowl !== 'none') {
+      result.sort((a, b) => sortBowl === 'desc'
+        ? (b.bowlingRating ?? 0) - (a.bowlingRating ?? 0)
+        : (a.bowlingRating ?? 0) - (b.bowlingRating ?? 0))
+    }
+    return result
+  }, [rows, search, role, keeper, sortBat, sortBowl])
 
   if (authLoading) {
     return (
@@ -409,11 +416,11 @@ export default function PlayersPage() {
         display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         <FilterBar
-          search={search}   setSearch={setSearch}
-          role={role}       setRole={setRole}
-          keeper={keeper}   setKeeper={setKeeper}
-          minBat={minBat}   setMinBat={setMinBat}
-          minBowl={minBowl} setMinBowl={setMinBowl}
+          search={search}     setSearch={setSearch}
+          role={role}         setRole={setRole}
+          keeper={keeper}     setKeeper={setKeeper}
+          sortBat={sortBat}   setSortBat={setSortBat}
+          sortBowl={sortBowl} setSortBowl={setSortBowl}
           total={rows.length}
           filtered={filtered.length}
           onReset={resetFilters}
